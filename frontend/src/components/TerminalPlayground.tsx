@@ -422,12 +422,6 @@ Utilisez les onglets interactifs à gauche pour modifier visuellement l'arbre de
       language: 'python'
     },
     {
-      name: 'Hopson Mode (Mike Gouthon)',
-      description: 'Changer le profil de l\'utilisateur (sudo -u hopson)',
-      code: 'sudo -u hopson',
-      language: 'python'
-    },
-    {
       name: 'Restaurer Profil Dels',
       description: 'Revenir au mode de fonctionnement normal (exit)',
       code: 'exit',
