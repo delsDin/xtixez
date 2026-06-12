@@ -200,7 +200,7 @@ export const Hero = () => {
                 }}
                 className="px-8 py-3 rounded-full bg-gradient-to-r from-pink-500 to-rose-600 text-white font-medium hover:from-pink-600 hover:to-rose-750 hover:scale-105 transition-all text-center cursor-pointer shadow-lg shadow-pink-500/20 w-full sm:w-auto"
               >
-                👑 Will you be my Queen ?
+                👑 Want to be my Queen ?
               </button>
             ) : (
               <a 

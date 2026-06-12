@@ -55,13 +55,13 @@ export const Contact = () => {
               <div>
                 <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Discutons de votre projet</h3>
                 <p className="text-slate-600 dark:text-slate-400 mb-8">
-                  Je suis actuellement disponible pour de nouvelles opportunités. N'hésitez pas à me contacter pour discuter de vos besoins en développement ou en data science.
+                  Je suis disponible pour de nouvelles opportunités. N'hésitez pas à me contacter pour discuter de vos besoins en développement ou en data science.
                 </p>
               </div>
 
               <div className="space-y-6">
                 <motion.a 
-                  href="mailto:hello@example.com" 
+                  href="mailto:delsdenla.dev@gmail.com" 
                   whileHover={{ x: 6, scale: 1.01 }}
                   transition={{ type: 'spring', stiffness: 350, damping: 25 }}
                   className="flex items-center gap-4 group cursor-pointer"
@@ -71,12 +71,12 @@ export const Contact = () => {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-400 dark:text-slate-550 uppercase tracking-wider">Email</p>
-                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">hello@example.com</p>
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">delsdenla.dev@gmail.com</p>
                   </div>
                 </motion.a>
                 
                 <motion.a 
-                  href="tel:+33612345678" 
+                  href="tel:+2290153024367" 
                   whileHover={{ x: 6, scale: 1.01 }}
                   transition={{ type: 'spring', stiffness: 350, damping: 25 }}
                   className="flex items-center gap-4 group cursor-pointer"
@@ -86,12 +86,12 @@ export const Contact = () => {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-400 dark:text-slate-550 uppercase tracking-wider">Téléphone</p>
-                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{`+33 6 12 34 56 78`}</p>
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">{`+229 01 53 02 43 67`}</p>
                   </div>
                 </motion.a>
                 
                 <motion.a 
-                  href="https://maps.google.com/?q=Paris,+France" 
+                  href="https://maps.google.com/?q=Abomey-calavi,+Benin" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   whileHover={{ x: 6, scale: 1.01 }}
@@ -103,7 +103,7 @@ export const Contact = () => {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-400 dark:text-slate-550 uppercase tracking-wider">Localisation</p>
-                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Paris, France</p>
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Abomey-Calavi, Bénin</p>
                   </div>
                 </motion.a>
               </div>
