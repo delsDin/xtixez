@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
-import { experienceData } from '../data/mockData';
+import { experienceData as mockExperiences } from '../data/mockData';
 import { Briefcase } from 'lucide-react';
 import { ExperienceDetailModal } from './ExperienceDetailModal';
+import { api } from '../api';
 
 export const Experience = () => {
   const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 });
   const [selectedExperience, setSelectedExperience] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [experienceData, setExperienceData] = useState<any[]>(mockExperiences);
+
+  useEffect(() => {
+    api.getExperiences()
+      .then(data => {
+        if (data && data.length > 0) setExperienceData(data);
+      })
+      .catch(err => console.error("Impossible de récupérer les expériences:", err));
+  }, []);
 
   const handleOpenDetails = (experience: any) => {
     setSelectedExperience(experience);

@@ -79,8 +79,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Body parser limit configuration
-  app.use(express.json());
+  // ================================================================
+  // On utilise le proxy natif de Vite (défini dans vite.config.ts).
+  // Pour éviter que les requêtes POST vers /api/v1 ne soient bloquées,
+  // on applique express.json() uniquement sur les autres routes.
+  // ================================================================
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/v1')) {
+      next();
+    } else {
+      express.json({ limit: '50mb' })(req, res, next);
+    }
+  });
 
   // Message persistence setup
   const MESSAGES_FILE = path.join(process.cwd(), "messages.json");

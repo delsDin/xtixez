@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
 import { 
@@ -12,9 +12,10 @@ import {
   Lightbulb 
 } from 'lucide-react';
 import { useNavigation } from '../context/NavigationContext';
-import { servicesData } from '../data/mockData';
+import { servicesData as mockServices } from '../data/mockData';
 import { ReviewModal } from './ReviewModal';
 import { TiltCard } from './TiltCard';
+import { api } from '../api';
 
 const getIconForService = (iconName: string) => {
   const iconMap: { [key: string]: React.ReactNode } = {
@@ -87,6 +88,15 @@ export const Services = () => {
   const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 });
   const { setActiveSection } = useNavigation();
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [servicesData, setServicesData] = useState<any[]>(mockServices);
+
+  useEffect(() => {
+    api.getServices()
+      .then(data => {
+        if (data && data.length > 0) setServicesData(data);
+      })
+      .catch(err => console.error("Impossible de récupérer les services:", err));
+  }, []);
 
   const handleContact = () => {
     setActiveSection('contact');

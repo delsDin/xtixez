@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
 import { Github, ExternalLink, X, GitCommit, Search, RefreshCw, AlertCircle } from 'lucide-react';
-import { projectsData } from '../data/mockData';
+import { projectsData as mockProjects } from '../data/mockData';
+import { api } from '../api';
 import { TiltCard } from './TiltCard';
 
 const ProjectModal = ({ project, onClose }: { project: any; onClose: () => void }) => {
@@ -269,6 +270,18 @@ const ProjectModal = ({ project, onClose }: { project: any; onClose: () => void 
 };
 
 export const Projects = () => {
+  const [projectsData, setProjectsData] = useState<any[]>(mockProjects);
+  
+  useEffect(() => {
+    api.getProjects()
+      .then(data => {
+        if (data && data.length > 0) {
+          setProjectsData(data);
+        }
+      })
+      .catch(err => console.error("Impossible de récupérer les projets:", err));
+  }, []);
+
   const [filter, setFilter] = useState('Tous');
   const [selectedTech, setSelectedTech] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<any>(null);

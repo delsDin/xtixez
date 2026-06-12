@@ -6,6 +6,7 @@ import profileImg from '../data/profil.png';
 import hopsonImg from '../data/opson.jpeg';
 import { downloadCV } from '../utils/cvDownloader';
 import { LoveChatBubbleLayer, LoveMessage } from './LoveChat';
+import { api } from '../api';
 
 const normalPhrases = [
   "Je transforme des données complexes en applications web performantes, élégantes et intuitives.",
@@ -42,11 +43,20 @@ export const Hero = () => {
 
     const fetchHeroMessages = async () => {
       try {
-        const res = await fetch('/api/messages');
-        if (res.ok) {
-          const data = await res.json();
-          setLoveMessages(data);
-        }
+        const data = await api.getLoveMessages();
+        const normalized = data.map((raw: any) => ({
+          id: raw.id,
+          sender: raw.sender,
+          text: raw.text,
+          timestamp: raw.timestamp,
+          emoji: raw.emoji,
+          bubbleColor: raw.bubble_color ?? raw.bubbleColor ?? '',
+          x: raw.x ?? 10,
+          y: raw.y ?? 10,
+          scale: raw.scale ?? 1,
+          speed: raw.speed ?? 8,
+        }));
+        setLoveMessages(normalized);
       } catch (e) {
         console.error("Error fetching messages for Hero:", e);
       }
@@ -446,13 +456,24 @@ export const Hero = () => {
 
               {!isSent ? (
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     setIsSending(true);
-                    setTimeout(() => {
-                      setIsSending(false);
+                    try {
+                      await api.postQueenReply({
+                        name: replyName,
+                        message: replyMsg,
+                        mood: moodLabels[replyMood],
+                        created_at: Date.now()
+                      });
                       setIsSent(true);
-                    }, 1800);
+                    } catch (err) {
+                      console.error("Erreur lors de l'envoi de la réponse", err);
+                      // Afficher message succès de toute façon (UX)
+                      setIsSent(true);
+                    } finally {
+                      setIsSending(false);
+                    }
                   }}
                   className="space-y-5 relative z-10 font-sans"
                 >

@@ -1,13 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
-import { testimonialsData } from '../data/mockData';
+import { testimonialsData as mockTestimonials } from '../data/mockData';
 import { Quote } from 'lucide-react';
 import { ReviewModal } from './ReviewModal';
+import { api } from '../api';
 
 export const Testimonials = () => {
   const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 });
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [testimonialsData, setTestimonialsData] = useState<any[]>(mockTestimonials);
+
+  useEffect(() => {
+    api.getTestimonials()
+      .then(data => {
+        if (data && data.length > 0) setTestimonialsData(data);
+      })
+      .catch(err => console.error("Impossible de récupérer les témoignages:", err));
+  }, []);
 
   return (
     <section className="py-20 bg-slate-50 dark:bg-slate-800/50">

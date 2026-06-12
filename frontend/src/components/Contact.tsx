@@ -5,6 +5,7 @@ import { Mail, Phone, MapPin, Send, Bot } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { useState } from 'react';
 import { AgentChatModal } from './AgentChatModal';
+import { api } from '../api';
 
 export const Contact = () => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
@@ -17,16 +18,18 @@ export const Contact = () => {
     setIsSubmitting(true);
     setSubmitStatus('idle');
     try {
-      const phoneNumber = "33612345678"; // Format international sans le '+'
-      const text = `Bonjour, je suis ${data.name} (${data.email}).\n\nSujet : ${data.subject}\n\nMessage :\n${data.message}`;
-      const encodedText = encodeURIComponent(text);
-      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedText}`;
-      
-      window.open(whatsappUrl, '_blank');
+      await api.postContactMessage({
+        name: data.name,
+        email: data.email,
+        subject: data.subject,
+        message: data.message,
+        created_at: Date.now()
+      });
       
       setSubmitStatus('success');
       reset();
     } catch (error) {
+      console.error(error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);

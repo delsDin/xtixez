@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigation } from '../context/NavigationContext';
+import { api } from '../api';
 import { 
   MessageSquare, 
   Send, 
@@ -171,16 +172,27 @@ export const LoveChat = ({ onMessagesUpdated }: { onMessagesUpdated?: (msgs: Lov
   const [isSending, setIsSending] = useState<boolean>(false);
   const [isSent, setIsSent] = useState<boolean>(false);
 
-  // Load messages from backend
+  // Load messages from backend — adapts snake_case (bubble_color) → camelCase (bubbleColor)
+  const normalizeMessage = (raw: any): LoveMessage => ({
+    id: raw.id,
+    sender: raw.sender,
+    text: raw.text,
+    timestamp: raw.timestamp,
+    emoji: raw.emoji,
+    bubbleColor: raw.bubble_color ?? raw.bubbleColor ?? '',
+    x: raw.x ?? 10,
+    y: raw.y ?? 10,
+    scale: raw.scale ?? 1,
+    speed: raw.speed ?? 8,
+  });
+
   const fetchMessages = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/messages');
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
-        if (onMessagesUpdated) onMessagesUpdated(data);
-      }
+      const data = await api.getLoveMessages();
+      const normalized = data.map(normalizeMessage);
+      setMessages(normalized);
+      if (onMessagesUpdated) onMessagesUpdated(normalized);
     } catch (e) {
       console.error("Could not fetch love messages:", e);
     } finally {
@@ -204,23 +216,23 @@ export const LoveChat = ({ onMessagesUpdated }: { onMessagesUpdated?: (msgs: Lov
 
     setIsSending(true);
     try {
-      const res = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: sender.trim(),
-          text: text.trim(),
-          emoji: selectedEmoji,
-          bubbleColor: selectedColor.classes
-        }),
+      const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await api.postLoveMessage({
+        id,
+        sender: sender.trim(),
+        text: text.trim(),
+        timestamp: Date.now(),
+        emoji: selectedEmoji,
+        bubble_color: selectedColor.classes,
+        x: Math.floor(Math.random() * 80) + 5,
+        y: Math.floor(Math.random() * 80) + 5,
+        scale: 0.8 + Math.random() * 0.5,
+        speed: 6 + Math.floor(Math.random() * 6),
       });
-
-      if (res.ok) {
-        setText('');
-        setIsSent(true);
-        await fetchMessages(); // reload instantly
-        setTimeout(() => setIsSent(false), 2400);
-      }
+      setText('');
+      setIsSent(true);
+      await fetchMessages(); // reload instantly
+      setTimeout(() => setIsSent(false), 2400);
     } catch (err) {
       console.error(err);
     } finally {
