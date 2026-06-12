@@ -420,12 +420,6 @@ Utilisez les onglets interactifs à gauche pour modifier visuellement l'arbre de
       description: 'Afficher la carte d\'identité système interactive',
       code: 'neofetch',
       language: 'python'
-    },
-    {
-      name: 'Restaurer Profil Dels',
-      description: 'Revenir au mode de fonctionnement normal (exit)',
-      code: 'exit',
-      language: 'python'
     }
   ];
 
