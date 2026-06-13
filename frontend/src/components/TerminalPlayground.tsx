@@ -906,20 +906,20 @@ Utilisez les onglets interactifs à gauche pour modifier visuellement l'arbre de
 
     const lowerTrimmed = trimmed.toLowerCase();
 
-    if (lowerTrimmed === 'sudo -u hopson') {
-      setIsHopsonMode(true);
-      newLines.push(
-        { type: 'success', text: '🔐 [SUDO AUTHENTICATION SUCCESSFUL]' },
-        { type: 'success', text: '💖 Initialisation du protocole de suractivation romantique...' },
-        { type: 'success', text: '👑 Session utilisateur basculée sur : hopson (Mike Gouthon - Re\'s Queen)' },
-        { type: 'info', text: '🌹 Tout l\'affichage a été configuré avec amour pour surprendre notre Reine !' },
-        { type: 'info', text: 'Saisissez "exit" ou "logout" pour revenir au profil par défaut (Dels).' }
-      );
-      newLines.push({ type: 'output', text: '>>>' });
-      setHistory(prev => [...prev, ...newLines]);
-      setInputVal('');
-      return;
-    }
+    // if (lowerTrimmed === 'sudo -u hopson') {
+    //   setIsHopsonMode(true);
+    //   newLines.push(
+    //     { type: 'success', text: '🔐 [SUDO AUTHENTICATION SUCCESSFUL]' },
+    //     { type: 'success', text: '💖 Initialisation du protocole de suractivation romantique...' },
+    //     { type: 'success', text: '👑 Session utilisateur basculée sur : hopson (Mike Gouthon - Re\'s Queen)' },
+    //     { type: 'info', text: '🌹 Tout l\'affichage a été configuré avec amour pour surprendre notre Reine !' },
+    //     { type: 'info', text: 'Saisissez "exit" ou "logout" pour revenir au profil par défaut (Dels).' }
+    //   );
+    //   newLines.push({ type: 'output', text: '>>>' });
+    //   setHistory(prev => [...prev, ...newLines]);
+    //   setInputVal('');
+    //   return;
+    // }
 
     if (lowerTrimmed === 'exit' || lowerTrimmed === 'logout' || lowerTrimmed === 'sudo -u Dels' || lowerTrimmed === 'sudo -u default') {
       if (isHopsonMode) {
