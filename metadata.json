@@ -1,0 +1,10 @@
+{
+  "name": "Remix 1: Dev \u0026 Data Portfolio 4",
+  "description": "Portfolio professionnel pour un développeur Full-Stack et Data Scientist.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
