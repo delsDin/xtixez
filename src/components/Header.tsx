@@ -2111,13 +2111,6 @@ export const Header = () => {
                       </ul>
                     </div>
                     <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
-                      <span className="text-[#f43f5e] font-black">{isEn ? "Toggle Hopson Mode:" : "Protocole Hopson (Reine) :"}</span>
-                      <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
-                        <li>“{isEn ? "love protocol" : "activer le mode reine"}”</li>
-                        <li>“{isEn ? "disable hopson mode" : "désactiver le mode reine"}”</li>
-                      </ul>
-                    </div>
-                    <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
                       <span className="text-[#f43f5e] font-black">{isEn ? "Diagnostics Report:" : "Rapport d'intégrité système :"}</span>
                       <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
                         <li>“{isEn ? "system report" : "rapport système"}”</li>
