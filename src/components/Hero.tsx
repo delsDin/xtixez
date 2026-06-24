@@ -181,7 +181,7 @@ export const Hero = () => {
               draggable={false}
               onContextMenu={(e) => e.preventDefault()}
               onDragStart={(e) => e.preventDefault()}
-              className="relative z-10 w-full h-full object-cover rounded-full border-4 shadow-xl border-white dark:border-slate-800 pointer-events-none select-none"
+              className="relative z-10 w-full h-full object-cover rounded-full border-4 shadow-xl border-white dark:border-slate-800 select-none"
             />
           </div>
         </motion.div>
