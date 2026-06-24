@@ -361,7 +361,7 @@ export const Header = () => {
 
     if (hopsonActivateKeywords.some(kw => cleanedText === kw || cleanedText.includes(kw))) {
       setIsHopsonMode(true);
-      const msg = `Désolé ! Je suis l'assistant de ${ownerName || 'Dels'} et il m'a demandé de supprimer le mode Hopson...`;
+      const msg = `Désolé ! Je suis Hermie, l'assistant de ${ownerName || 'Dels'} et il m'a demandé de supprimer le mode Hopson...`;
       speakText(msg);
       logVoiceCommandToHistory(
         transcript,
@@ -370,7 +370,7 @@ export const Header = () => {
         'error'
       );
       setVoiceFeedback({
-        text: `Désolé ! Je suis l'assistant de ${ownerName || 'Dels'} et il m'a demandé de supprimer le mode Hopson...`,
+        text: `Désolé ! Je suis Hermie, l'assistant de ${ownerName || 'Dels'} et il m'a demandé de supprimer le mode Hopson...`,
         type: 'error'
       });
       setTimeout(() => setVoiceFeedback({ text: '', type: null }), 6000);
@@ -1258,34 +1258,6 @@ export const Header = () => {
             title: "Notre Histoire - Hopson Romantique",
             description: "Le parcours unique et les souvenirs partagés de notre complicité racontés à travers un design interactif et poétique."
           },
-          'love-stories': {
-            title: "Histoires d'Amour & Anecdotes - Hopson",
-            description: "Laissez-vous charmer par nos récits, anecdotes romantiques et mélodies préférées partagées avec passion."
-          },
-          'surprises': {
-            title: "Surprises Secrètes - Hopson Spécial",
-            description: "Découvrez des secrets cachés et déverrouillez des fonctionnalités uniques de complicité."
-          },
-          'elixir': {
-            title: "Mélangeur d'Élixirs Magiques - Hopson",
-            description: "Amusez-vous à combiner diverses essences amoureuses pour concocter votre philtre d'amour idéal."
-          },
-          'wheel': {
-            title: "Roue de la Complicité - Test Match",
-            description: "Faites tourner la roue de la complicité pour évaluer votre compatibilité et rire de nos anecdotes de couple."
-          },
-          'clicker': {
-            title: "Love Clicker - Jeu d'Amour Infini",
-            description: "Cliquez pour générer des vagues de cœurs et débloquer des mots doux mignons."
-          },
-          'romanticCoder': {
-            title: "Le Développeur Romantique - Code & Passion",
-            description: "Découvrez comment un développeur intègre du code et des sentiments pour créer de la poésie technologique."
-          },
-          'breathing': {
-            title: "Boîte Respiratoire de Sérénité - Hopson",
-            description: "Un espace pour respirer, se détendre et se recentrer ensemble grâce à un guide visuel adapté."
-          },
           'terminal': {
             title: "Console Romantique - Terminal Interactive",
             description: "Saisissez des commandes secrètes dans notre terminal romantique pour révéler de joyeux easter-eggs."
@@ -2084,48 +2056,6 @@ export const Header = () => {
                   )}
                 </div>
 
-                {/* 6. Admin Voice Commands (Special requests) */}
-                <div className="bg-slate-950/50 border border-slate-850 p-5 rounded-2xl md:col-span-2 space-y-3">
-                  <h4 className="text-[11px] font-mono font-black tracking-widest text-[#f43f5e] uppercase flex items-center gap-1.5 animate-pulse">
-                    <Key size={11} className="shrink-0" />
-                    <span>{isEn ? "Special Administrator Commands" : "Commandes Spéciales Administrateur"}</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-                    {isEn
-                      ? "Exclusive voice options for the website administrator. Speak any trigger to manage server states or layouts."
-                      : "Privilèges vocaux exclusifs pour l'administrateur du site. Dites une commande pour modifier les permissions à la volée."}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[10px]">
-                    <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
-                      <span className="text-[#f43f5e] font-black">{isEn ? "Activate Admin Mode:" : "Activer l'administration :"}</span>
-                      <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
-                        <li>“{isEn ? "enable admin mode" : "activer le mode administrateur"}”</li>
-                        <li>“{isEn ? "sudo admin" : "sudo admin"}”</li>
-                      </ul>
-                    </div>
-                    <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
-                      <span className="text-[#f43f5e] font-black">{isEn ? "Disable Admin Mode:" : "Résilier l'administration :"}</span>
-                      <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
-                        <li>“{isEn ? "disable admin mode" : "désactiver le mode administrateur"}”</li>
-                        <li>“{isEn ? "exit admin" : "quitter mode administrateur"}”</li>
-                      </ul>
-                    </div>
-                    <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
-                      <span className="text-[#f43f5e] font-black">{isEn ? "Toggle Hopson Mode:" : "Protocole Hopson (Reine) :"}</span>
-                      <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
-                        <li>“{isEn ? "love protocol" : "activer le mode reine"}”</li>
-                        <li>“{isEn ? "disable hopson mode" : "désactiver le mode reine"}”</li>
-                      </ul>
-                    </div>
-                    <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
-                      <span className="text-[#f43f5e] font-black">{isEn ? "Diagnostics Report:" : "Rapport d'intégrité système :"}</span>
-                      <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
-                        <li>“{isEn ? "system report" : "rapport système"}”</li>
-                        <li>“{isEn ? "system health report" : "rapport de performance"}”</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
 
               </div>
 
