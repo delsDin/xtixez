@@ -549,6 +549,39 @@ export const Blog = () => {
       console.error(err);
       setCacheSource('static');
       setErrorMessage("Une erreur est survenue lors de la synchronisation. Affichage des articles de secours.");
+      // Fallback local en cas d'erreur réseau / serveur crashé
+      const FALLBACK_ARTICLES = [
+        {
+          title: "React 19 Server Components & Actions : Le guide ultime",
+          technology: "React",
+          excerpt: "Découvrez comment l'architecture serveur de React 19 simplifie la gestion d'état et l'accès aux bases de données en direct sans API intermédiaire, tout en conservant d'excellentes performances d'affichage.",
+          date: "Il y a 3 jours",
+          sourceName: "react.dev",
+          url: "https://react.dev/blog/2024/12/05/react-19"
+        },
+        {
+          title: "Python 3.13 introduit un compilateur JIT expérimental",
+          technology: "Python",
+          excerpt: "La dernière mise à jour majeure de Python apporte une refonte du GIL permettant de vrais traitements parallèles, ainsi qu'un nouveau compilateur Just-In-Time pour accélérer l'exécution des boucles complexes.",
+          date: "La semaine dernière",
+          sourceName: "Python Software Foundation",
+          url: "https://docs.python.org/3/whatsnew/3.13.html"
+        },
+        {
+          title: "L'essor du RAG et de l'affinage (Fine-Tuning) pour l'IA générative",
+          technology: "Machine Learning",
+          excerpt: "Une plongée technique au cœur de l'optimisation des grands modèles de langage par génération augmentée par récupération (RAG) et apprentissage par renforcement.",
+          date: "La semaine dernière",
+          sourceName: "Hugging Face Blog",
+          url: "https://huggingface.co/blog"
+        }
+      ];
+      
+      const filteredFallback = tech !== "All"
+        ? FALLBACK_ARTICLES.filter(a => a.technology.toLowerCase().includes(tech.toLowerCase()))
+        : FALLBACK_ARTICLES;
+        
+      setArticles(filteredFallback.length > 0 ? filteredFallback : FALLBACK_ARTICLES);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

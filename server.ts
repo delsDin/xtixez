@@ -14,9 +14,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
   // Body parser limit configuration
   app.use(express.json({ limit: "20mb" }));
@@ -1338,32 +1337,26 @@ Sur la base des résultats de recherche Google, génère exactement 5 articles d
     }
   });
 
-  const httpServer = http.createServer(app);
-
   // Serve static items / Vite handling
   if (process.env.NODE_ENV !== "production") {
-    const isHmrDisabled = process.env.DISABLE_HMR === "true";
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: isHmrDisabled ? false : {
-          server: httpServer,
+    (async () => {
+      const httpServer = http.createServer(app);
+      const isHmrDisabled = process.env.DISABLE_HMR === "true";
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          hmr: isHmrDisabled ? false : {
+            server: httpServer,
+          },
         },
-      },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      
+      httpServer.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    })();
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-startServer();
+export default app;
