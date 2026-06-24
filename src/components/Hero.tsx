@@ -178,7 +178,10 @@ export const Hero = () => {
             <img 
               src={generalInfo?.profile_picture_url || profileImg} 
               alt={generalInfo?.owner_name || "Dels M. Dinla."} 
-              className="relative z-10 w-full h-full object-cover rounded-full border-4 shadow-xl border-white dark:border-slate-800"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+              onDragStart={(e) => e.preventDefault()}
+              className="relative z-10 w-full h-full object-cover rounded-full border-4 shadow-xl border-white dark:border-slate-800 pointer-events-none select-none"
             />
           </div>
         </motion.div>
