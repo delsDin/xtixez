@@ -10,8 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
 
 
 const app = express();
@@ -23,7 +22,16 @@ const PORT = Number(process.env.PORT) || 3000;
   // Supabase client initialization for server
   const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
   const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || "";
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  let supabaseInstance: any = null;
+  function getSupabase() {
+    if (!supabaseInstance) {
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing. Please set them in Vercel.");
+      }
+      supabaseInstance = createClient(supabaseUrl, supabaseKey);
+    }
+    return supabaseInstance;
+  }
 
   let portfolioConfig: any = { githubReposCache: null, githubLastSync: null };
   const CONFIG_FILE = path.join(process.cwd(), "portfolio_config.json");
@@ -340,7 +348,7 @@ const PORT = Number(process.env.PORT) || 3000;
       }
       
       const token = authHeader.split(" ")[1];
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      const { data: { user }, error } = await getSupabase().auth.getUser(token);
       
       if (error || !user) {
         return res.status(403).json({ error: "Accès refusé. Session invalide ou expirée." });
@@ -553,19 +561,19 @@ const PORT = Number(process.env.PORT) || 3000;
 Ton rôle est de répondre de façon professionnelle, courtoise, chaleureuse et concise aux visiteurs de mon portfolio.`;
 
       try {
-        const [
-          { data: general },
-          { data: services },
-          { data: skills },
-          { data: projects },
-          { data: experiences }
-        ] = await Promise.all([
-          supabase.from('general_info').select('*').single(),
-          supabase.from('services').select('title, description'),
-          supabase.from('skills').select('*'),
-          supabase.from('projects').select('title, description, tech_stack'),
-          supabase.from('experiences').select('*').order('id', { ascending: true })
+        const [generalRes, servicesRes, skillsRes, projectsRes, expRes] = await Promise.all([
+          getSupabase().from('general_info').select('*').single(),
+          getSupabase().from('services').select('title, description'),
+          getSupabase().from('skills').select('*'),
+          getSupabase().from('projects').select('title, description, tech_stack'),
+          getSupabase().from('experiences').select('*').order('id', { ascending: true })
         ]);
+
+        const general = generalRes.data;
+        const services = servicesRes.data;
+        const skills = skillsRes.data;
+        const projects = projectsRes.data;
+        const experiences = expRes.data;
 
         const ownerName = general?.owner_name || "le propriétaire de ce portfolio";
         const email = general?.owner_email || "l'adresse email de contact";
@@ -1031,7 +1039,7 @@ Si tu ne trouves pas le contenu exact de l'article, base-toi sur ce que Google S
   const saveToSupabaseBlogCache = async (key: string, articles: any[], trendSummary: string, source: string = 'gemini') => {
     try {
       // 1. Save trend summary to the old blog_cache table
-      await supabase.from('blog_cache').upsert({
+      await getSupabase().from('blog_cache').upsert({
         tech_key: key,
         trend_summary: trendSummary,
         fetched_at: new Date().toISOString(),
@@ -1050,7 +1058,7 @@ Si tu ne trouves pas le contenu exact de l'article, base-toi sur ce que Google S
           fetched_at: new Date().toISOString()
         }));
 
-        await supabase.from('blog_articles_cache').upsert(rowsToInsert, { onConflict: 'url' });
+        await getSupabase().from('blog_articles_cache').upsert(rowsToInsert, { onConflict: 'url' });
       }
 
       console.log(`[Blog DB Cache] Saved ${articles.length} articles individually for tech="${key}" to Supabase.`);
@@ -1063,14 +1071,14 @@ Si tu ne trouves pas le contenu exact de l'article, base-toi sur ce que Google S
   const loadFromSupabaseBlogCache = async (key: string): Promise<{ articles: any[]; techTrendSummary: string; fetchedAt: string | null } | null> => {
     try {
       // Load trend summary
-      const { data: trendData } = await supabase
+      const { data: trendData } = await getSupabase()
         .from('blog_cache')
         .select('trend_summary, fetched_at')
         .eq('tech_key', key)
         .single();
 
       // Load individual accumulated articles
-      let articlesQuery = supabase
+      let articlesQuery = getSupabase()
         .from('blog_articles_cache')
         .select('title, technology, excerpt, date, source_name, url, fetched_at')
         .order('fetched_at', { ascending: false });
@@ -1109,7 +1117,7 @@ Si tu ne trouves pas le contenu exact de l'article, base-toi sur ce que Google S
   // Helper: load manual blog posts from Supabase
   const loadManualBlogPosts = async (techFilter: string): Promise<any[]> => {
     try {
-      let query = supabase
+      let query = getSupabase()
         .from('blog_posts')
         .select('title, technology, excerpt, date, source_name, url')
         .eq('status', 'published')
