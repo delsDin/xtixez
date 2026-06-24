@@ -17,7 +17,6 @@ interface AgentChatModalProps {
 
 const STARTER_QUESTIONS = [
   "Quels sont tes services principaux ?",
-  "Parle-moi de ton projet IA médical.",
   "Es-tu disponible pour une mission ?",
   "Quelles technologies utilises-tu ?"
 ];
@@ -87,32 +86,75 @@ export const AgentChatModal: React.FC<AgentChatModalProps> = ({ isOpen, onClose 
         content: m.content
       }));
 
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/chat?stream=true', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
         },
         body: JSON.stringify({ history: apiHistory })
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Une erreur s'est produite lors de la connexion à l'Agent.");
       }
 
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      if (!reader) throw new Error("Stream non supporté par le navigateur");
+
+      let assistantMessageId = (Date.now() + 1).toString();
+      let fullResponse = "";
+
+      // Ajouter le message vide de l'assistant
+      setMessages(prev => [
+        ...prev,
+        { id: assistantMessageId, role: 'assistant', content: '' }
+      ]);
+
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Garde la ligne incomplète
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) throw new Error(parsed.error);
+              if (parsed.text) {
+                fullResponse += parsed.text;
+                // Mettre à jour l'interface au fur et à mesure
+                setMessages(prev => prev.map(m => 
+                  m.id === assistantMessageId ? { ...m, content: fullResponse } : m
+                ));
+              }
+            } catch (e) {
+              // Ignore invalid JSON from stream chunks
+            }
+          }
+        }
+      }
+      
+      saveMessageToSupabase('assistant', fullResponse);
+    } catch (err: any) {
+      console.error("Chat request failed:", err);
+      // Message fallback sympa en cas d'indisponibilité de l'API
       setMessages(prev => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: data.response
+          content: `Oups ! 😅 Mes circuits neuronaux sont un peu surchargés en ce moment (l'IA est temporairement indisponible).\n\nMais pas d'inquiétude, vous pouvez toujours explorer le reste de mon portfolio ou envoyer un message direct à ${ownerName} via la section Contact !`
         }
       ]);
-      saveMessageToSupabase('assistant', data.response);
-    } catch (err: any) {
-      console.error("Chat request failed:", err);
-      setErrorText(err.message || "Impossible de joindre l'Agent IA. Veuillez vérifier votre connexion.");
     } finally {
       setIsLoading(false);
     }

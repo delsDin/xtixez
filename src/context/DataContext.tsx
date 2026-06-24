@@ -14,6 +14,9 @@ export interface GeneralInfo {
   github_url: string;
   linkedin_url: string;
   maintenance_mode: boolean;
+  about_title?: string;
+  about_paragraphs?: string[];
+  about_citations?: string[];
 }
 
 export interface MaintenanceConfig {
@@ -44,7 +47,14 @@ const fallbackGeneralInfo: GeneralInfo = {
   whatsapp_number: '22953024367',
   github_url: 'https://github.com/delsDin',
   linkedin_url: 'https://www.linkedin.com/in/dels-dinla',
-  maintenance_mode: false
+  maintenance_mode: false,
+  about_title: "À propos de moi",
+  about_paragraphs: [
+    "Je suis un développeur full-stack passionné par la création de solutions technologiques innovantes."
+  ],
+  about_citations: [
+    "La technologie est le meilleur moyen de résoudre les problèmes de demain."
+  ]
 };
 
 const fallbackMaintenanceConfig: MaintenanceConfig = {
@@ -55,6 +65,23 @@ const fallbackMaintenanceConfig: MaintenanceConfig = {
   autoReopenDate: '',
   reopenDate: '',
   reopenedAt: ''
+};
+
+export const fallbackSectionVisibility = {
+  home: true,
+  about: true,
+  services: true,
+  skills: true,
+  certifications: true,
+  projects: true,
+  experience: true,
+  blog: true,
+  contact: true,
+  github: true,
+  pipeline: true,
+  ml_playground: true,
+  terminal: true,
+  cv_generator: true,
 };
 
 
@@ -68,6 +95,8 @@ interface DataContextType {
   maintenanceConfig: MaintenanceConfig;
   loading: boolean;
   error: string | null;
+  certifications: any[];
+  sectionVisibility: typeof fallbackSectionVisibility;
 }
 
 const DataContext = createContext<DataContextType>({
@@ -79,26 +108,47 @@ const DataContext = createContext<DataContextType>({
   generalInfo: fallbackGeneralInfo,
   maintenanceConfig: fallbackMaintenanceConfig,
   loading: false,
-  error: null
+  error: null,
+  certifications: [],
+  sectionVisibility: fallbackSectionVisibility
 });
 
+const CACHE_KEY = 'stisx_portfolio_data_cache';
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [data, setData] = useState({
-    projects: [],
-    experiences: [],
-    services: [],
-    skills: { development: [], dataScience: [], autres: [] },
-    testimonials: [],
-    generalInfo: fallbackGeneralInfo,
-    maintenanceConfig: fallbackMaintenanceConfig
+  const [data, setData] = useState(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.warn('Erreur lecture cache local:', e);
+    }
+    return {
+      projects: [],
+      experiences: [],
+      services: [],
+      skills: { development: [], dataScience: [], autres: [] },
+      testimonials: [],
+      generalInfo: fallbackGeneralInfo,
+      maintenanceConfig: fallbackMaintenanceConfig,
+      certifications: [],
+      sectionVisibility: fallbackSectionVisibility
+    };
   });
-  const [loading, setLoading] = useState(true);
+  
+  const [loading, setLoading] = useState(() => {
+    return !localStorage.getItem(CACHE_KEY);
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        setLoading(true);
+        if (!localStorage.getItem(CACHE_KEY)) {
+          setLoading(true);
+        }
         
         // Fetch all tables in parallel
         const [
@@ -108,7 +158,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           { data: skillsRes, error: skErr },
           { data: testRes, error: tErr },
           { data: genInfoRes, error: gErr },
-          { data: maintRes, error: mErr }
+          { data: maintRes, error: mErr },
+          { data: certsRes, error: cErr },
+          { data: visRes, error: vErr }
         ] = await Promise.all([
           supabase.from('projects').select('*').order('id', { ascending: true }),
           supabase.from('experiences').select('*').order('id', { ascending: true }),
@@ -116,7 +168,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           supabase.from('skills').select('*'),
           supabase.from('testimonials').select('*'),
           supabase.from('general_info').select('*').single(),
-          supabase.from('maintenance_config').select('*').eq('id', 1).single()
+          supabase.from('maintenance_config').select('*').eq('id', 1).single(),
+          supabase.from('certifications').select('*').order('created_at', { ascending: false }),
+          supabase.from('section_visibility').select('*').eq('id', 1).single()
         ]);
 
         // Fallback checks for major layout data
@@ -133,6 +187,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Erreur lors du chargement depuis Supabase, utilisation des données locales.');
           setError('Impossible de joindre la base de données ou tables manquantes.');
           return; // Use fallbacks if DB fails
+        }
+        
+        if (cErr) {
+          console.error("Error fetching certifications:", cErr);
         }
 
         // Format skills data to match the expected format { development: [], dataScience: [], autres: [] }
@@ -177,7 +235,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        setData({
+        const newData = {
           projects: projectsRes?.length ? projectsRes : [],
           experiences: expRes?.length ? expRes : [],
           services: servRes?.length ? servRes : [],
@@ -187,8 +245,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...genInfoRes,
             maintenance_mode: !!genInfoRes.maintenance_mode
           } : fallbackGeneralInfo,
-          maintenanceConfig: formattedMaint
-        });
+          maintenanceConfig: formattedMaint,
+          certifications: certsRes?.length ? certsRes.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            issuer: c.issuer,
+            date: c.date,
+            credentialId: c.credential_id || 'N/A',
+            category: c.category,
+            skills: c.skills || [],
+            description: c.description || '',
+            verifyUrl: c.verify_url || '#',
+            logoColor: c.logo_color || 'from-blue-600 via-blue-400 to-indigo-500',
+            status: c.status || 'published',
+            attachmentUrl: c.attachment_url || '',
+            attachmentType: c.attachment_type || ''
+          })) : [],
+          sectionVisibility: visRes ? {
+            home: visRes.home !== false,
+            about: visRes.about !== false,
+            services: visRes.services !== false,
+            skills: visRes.skills !== false,
+            certifications: visRes.certifications !== false,
+            projects: visRes.projects !== false,
+            experience: visRes.experience !== false,
+            blog: visRes.blog !== false,
+            contact: visRes.contact !== false,
+            github: visRes.github !== false,
+            pipeline: visRes.pipeline !== false,
+            ml_playground: visRes.ml_playground !== false,
+            terminal: visRes.terminal !== false,
+            cv_generator: visRes.cv_generator !== false,
+          } : fallbackSectionVisibility
+        };
+        
+        setData(newData);
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(newData));
+        } catch (e) {
+          console.warn('Erreur écriture cache local:', e);
+        }
         
       } catch (err: any) {
         reportIncident({

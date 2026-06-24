@@ -19,7 +19,7 @@ export const Header = () => {
     setShowHopsonRemovedModal,
     hasSuspiciousAlert
   } = useNavigation();
-  const { skills, projects, experiences, testimonials } = useData();
+  const { skills, projects, experiences, testimonials, sectionVisibility } = useData();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -97,6 +97,7 @@ export const Header = () => {
   const recognitionRef = React.useRef<any>(null);
 
   useEffect(() => {
+
     return () => {
       if (recognitionRef.current) {
         try {
@@ -1362,30 +1363,29 @@ export const Header = () => {
   const hasSkills = skills && Object.values(skills).some((arr: any) => arr && arr.length > 0);
   const hasProjects = projects && projects.length > 0;
   const hasExperience = (experiences && experiences.length > 0) || (testimonials && testimonials.length > 0);
-
-  const isCompactDesktop = windowWidth >= 1024 && windowWidth < 1320;
+  const isCompactDesktop = windowWidth >= 1024 && windowWidth < 1440;
 
   const mainNavLinks = [
-        { name: 'Accueil', id: 'home', show: true },
-        { name: 'À propos', id: 'about', show: true },
-        { name: 'Compétences', id: 'skills', show: hasSkills },
-        { name: 'Projets', id: 'projects', show: hasProjects },
-        { name: 'Expérience', id: 'experience', show: hasExperience && !isCompactDesktop },
-        { name: 'Certifications', id: 'certifications', show: !isCompactDesktop },
-        { name: 'Services', id: 'services', show: !isCompactDesktop },
-        { name: 'Contact', id: 'contact', show: true },
+        { name: 'Accueil', id: 'home', show: sectionVisibility?.home !== false },
+        { name: 'À propos', id: 'about', show: sectionVisibility?.about !== false },
+        { name: 'Compétences', id: 'skills', show: hasSkills && sectionVisibility?.skills !== false },
+        { name: 'Projets', id: 'projects', show: hasProjects && sectionVisibility?.projects !== false },
+        { name: 'Expérience', id: 'experience', show: hasExperience && !isCompactDesktop && sectionVisibility?.experience !== false },
+        { name: 'Certifications', id: 'certifications', show: !isCompactDesktop && sectionVisibility?.certifications !== false },
+        { name: 'Services', id: 'services', show: !isCompactDesktop && sectionVisibility?.services !== false },
+        { name: 'Contact', id: 'contact', show: sectionVisibility?.contact !== false },
       ].filter(link => link.show);
 
   const dropdownNavLinks = [
-        { name: 'Projets GitHub', id: 'github', show: true, desktopOnly: false },
-        { name: 'Blog', id: 'blog', show: true, desktopOnly: false },
-        { name: 'Expérience', id: 'experience', show: hasExperience && isCompactDesktop, desktopOnly: false },
-        { name: 'Certifications', id: 'certifications', show: isCompactDesktop, desktopOnly: false },
-        { name: 'Services', id: 'services', show: isCompactDesktop, desktopOnly: false },
-        { name: 'Data Pipeline', id: 'pipeline', show: true, desktopOnly: true },
-        { name: 'ML Playground', id: 'ml-playground', show: true, desktopOnly: true },
-        { name: 'Terminal AI', id: 'terminal', show: true, desktopOnly: true },
-        { name: 'Générateur CV', id: 'cv-generator', show: true, desktopOnly: true },
+        { name: 'Projets GitHub', id: 'github', show: sectionVisibility?.github !== false, desktopOnly: false },
+        { name: 'Blog', id: 'blog', show: sectionVisibility?.blog !== false, desktopOnly: false },
+        { name: 'Expérience', id: 'experience', show: hasExperience && isCompactDesktop && sectionVisibility?.experience !== false, desktopOnly: false },
+        { name: 'Certifications', id: 'certifications', show: isCompactDesktop && sectionVisibility?.certifications !== false, desktopOnly: false },
+        { name: 'Services', id: 'services', show: isCompactDesktop && sectionVisibility?.services !== false, desktopOnly: false },
+        { name: 'Data Pipeline', id: 'pipeline', show: sectionVisibility?.pipeline !== false, desktopOnly: true },
+        { name: 'ML Playground', id: 'ml-playground', show: sectionVisibility?.ml_playground !== false, desktopOnly: true },
+        { name: 'Terminal AI', id: 'terminal', show: sectionVisibility?.terminal !== false, desktopOnly: true },
+        { name: 'Générateur CV', id: 'cv-generator', show: sectionVisibility?.cv_generator !== false, desktopOnly: true },
       ].filter(link => link.show);
 
   const navLinks = [...mainNavLinks, ...dropdownNavLinks];
@@ -2108,6 +2108,13 @@ export const Header = () => {
                       <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
                         <li>“{isEn ? "disable admin mode" : "désactiver le mode administrateur"}”</li>
                         <li>“{isEn ? "exit admin" : "quitter mode administrateur"}”</li>
+                      </ul>
+                    </div>
+                    <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">
+                      <span className="text-[#f43f5e] font-black">{isEn ? "Toggle Hopson Mode:" : "Protocole Hopson (Reine) :"}</span>
+                      <ul className="text-slate-400 space-y-0.5 list-disc list-inside">
+                        <li>“{isEn ? "love protocol" : "activer le mode reine"}”</li>
+                        <li>“{isEn ? "disable hopson mode" : "désactiver le mode reine"}”</li>
                       </ul>
                     </div>
                     <div className="bg-slate-900 shadow-sm border border-slate-850/60 p-2.5 rounded-xl space-y-1">

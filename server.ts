@@ -559,20 +559,18 @@ Ton rôle est de répondre de façon professionnelle, courtoise, chaleureuse et 
           { data: services },
           { data: skills },
           { data: projects },
-          { data: experiences },
-          { data: contact }
+          { data: experiences }
         ] = await Promise.all([
-          supabase.from('portfolio_general_info').select('*').single(),
-          supabase.from('portfolio_services').select('title, description'),
-          supabase.from('portfolio_skills').select('*'),
-          supabase.from('portfolio_projects').select('title, description, tech_stack'),
-          supabase.from('portfolio_experiences').select('*').order('display_order', { ascending: true }),
-          supabase.from('contact_info').select('*').single()
+          supabase.from('general_info').select('*').single(),
+          supabase.from('services').select('title, description'),
+          supabase.from('skills').select('*'),
+          supabase.from('projects').select('title, description, tech_stack'),
+          supabase.from('experiences').select('*').order('id', { ascending: true })
         ]);
 
         const ownerName = general?.owner_name || "le propriétaire de ce portfolio";
-        const email = contact?.email || "l'adresse email de contact";
-        const phone = contact?.whatsapp_number || "";
+        const email = general?.owner_email || "l'adresse email de contact";
+        const phone = general?.whatsapp_number || general?.owner_phone || "";
 
         let expText = "";
         if (experiences && experiences.length > 0) {
@@ -614,15 +612,50 @@ Voici les informations clés sur ${ownerName} récupérées en temps réel :
    - Exprime-toi principalement en français (sauf si le visiteur te parle en anglais ou autre langue).
    - Reste toujours positif, pro-actif et encourage-les à travailler avec ${ownerName}.
    - S'ils souhaitent collaborer ou démarrer un projet, invite-les chaleureusement à remplir le formulaire de contact du site ou à envoyer un email à ${email}${phone ? ` ou sur WhatsApp au ${phone}` : ''}.
+   - Si on te demande de lister des éléments (projets, services, expériences, compétences), liste-les clairement avec des puces (sans te brider avec la limite de 2-3 phrases, sois exhaustif mais lisible).
    - Si on te demande des choses en dehors du cadre professionnel de ${ownerName}, réponds poliment que tu es dédié à répondre au sujet de son profil et de ses projets.
-   - Donne des réponses concises (maximum 2 à 3 phrases par message pour que ce soit agréable dans une interface de chat).`;
+   - Pour les conversations générales, donne des réponses concises (maximum 2 à 3 phrases par message pour que ce soit agréable dans une interface de chat).`;
       } catch (err) {
         console.warn("Could not fetch real-time data for Gemini prompt, falling back to basic prompt.", err);
       }
 
       const ai = getGeminiClient();
+      
+      const isStream = req.query.stream === 'true' || req.headers.accept === 'text/event-stream';
+
+      if (isStream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        try {
+          const responseStream = await ai.models.generateContentStream({
+            model: "gemini-3.1-flash-lite",
+            contents: contents,
+            config: {
+              systemInstruction: systemInstruction,
+              temperature: 0.7,
+            }
+          });
+
+          for await (const chunk of responseStream) {
+            if (chunk.text) {
+              res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+            }
+          }
+          res.write(`data: [DONE]\n\n`);
+          res.end();
+        } catch (error: any) {
+          console.error("Gemini stream error:", error);
+          res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+          res.end();
+        }
+        return;
+      }
+
+      // Fallback for non-streaming clients
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: contents,
         config: {
           systemInstruction: systemInstruction,
@@ -689,7 +722,7 @@ ${vfsContext ? `\n[CONTEXTE DU REPERTOIRE COURANT] : ${vfsContext}` : ""}`;
 
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: contentsInput,
         config: {
           systemInstruction: systemInstruction,
@@ -749,7 +782,7 @@ Langage : ${chosenLanguage}`;
 
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: userPrompt,
         config: {
           systemInstruction: systemInstruction,
@@ -802,10 +835,10 @@ Langage : ${chosenLanguage}`;
 
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: query,
         config: {
-          tools: [{ googleSearch: {} }],
+          // tools: [{ googleSearch: {} }], // Commenté car le Search Grounding nécessite un quota/facturation spécifique
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -870,18 +903,244 @@ Langage : ${chosenLanguage}`;
     }
   });
 
+  // API Blog Article Detail — fetch rich content via Gemini + Google Search
+  // In-memory cache to avoid repeated Gemini calls for the same article
+  const articleDetailCache: Record<string, { timestamp: number; data: any }> = {};
+  const ARTICLE_DETAIL_CACHE_DURATION = 2 * 60 * 60 * 1000; // 2 hours
+
+  app.get("/api/blog/article", async (req, res) => {
+    const articleUrl   = req.query.url   ? String(req.query.url).trim()   : '';
+    const articleTitle = req.query.title ? String(req.query.title).trim() : '';
+    const articleTech  = req.query.tech  ? String(req.query.tech).trim()  : '';
+
+    if (!articleUrl && !articleTitle) {
+      return res.status(400).json({ error: "url ou title requis." });
+    }
+
+    const cacheKey = articleUrl || articleTitle;
+    const now = Date.now();
+
+    // Serve from cache if fresh
+    if (articleDetailCache[cacheKey] && (now - articleDetailCache[cacheKey].timestamp < ARTICLE_DETAIL_CACHE_DURATION)) {
+      return res.json({ ...articleDetailCache[cacheKey].data, fromCache: true });
+    }
+
+    if (!apiKey) {
+      return res.status(503).json({ error: "API Gemini non configurée." });
+    }
+
+    try {
+      const searchTarget = articleUrl
+        ? `l'article disponible à cette URL : ${articleUrl}`
+        : `l'article intitulé "${articleTitle}" sur la technologie ${articleTech}`;
+
+      const prompt = `Tu es un expert en veille technologique. Recherche et analyse ${searchTarget}.
+
+Sur la base des résultats de recherche Google, génère un contenu détaillé en français pour cet article de blog technique. Le contenu doit :
+1. Être fidèle au contenu réel trouvé sur la page (ne pas inventer).
+2. Être rédigé de façon journalistique, claire et engagée.
+3. Contenir entre 3 et 5 paragraphes substantiels (80-120 mots chacun).
+4. Inclure 3 à 5 points clés synthétiques (bullet points concis).
+5. Estimer le temps de lecture en minutes.
+
+Si tu ne trouves pas le contenu exact de l'article, base-toi sur ce que Google Search te retourne sur ce sujet et cet article spécifique.`;
+
+      const ai = getGeminiClient();
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+        config: {
+          // // tools: [{ googleSearch: {} }], // Commenté car le Search Grounding nécessite un quota/facturation spécifique // Commenté car le Search Grounding nécessite un quota/facturation spécifique
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              paragraphs: {
+                type: Type.ARRAY,
+                description: "3 à 5 paragraphes du contenu de l'article, en français.",
+                items: { type: Type.STRING }
+              },
+              keyPoints: {
+                type: Type.ARRAY,
+                description: "3 à 5 points clés synthétiques extraits de l'article.",
+                items: { type: Type.STRING }
+              },
+              readingTimeMinutes: {
+                type: Type.NUMBER,
+                description: "Temps de lecture estimé en minutes (nombre entier)."
+              },
+              sourceQuality: {
+                type: Type.STRING,
+                description: "Brève note sur la fiabilité et la fraîcheur des sources trouvées (1 phrase)."
+              }
+            },
+            required: ["paragraphs", "keyPoints", "readingTimeMinutes"]
+          }
+        }
+      });
+
+      const text = response.text || "{}";
+      const parsed = JSON.parse(text.trim());
+
+      // Extract grounding sources
+      const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+      const sources: Array<{ title: string; url: string }> = [];
+      if (groundingMetadata?.groundingChunks) {
+        for (const chunk of groundingMetadata.groundingChunks) {
+          if (chunk.web?.uri) {
+            sources.push({ title: chunk.web.title || "Source", url: chunk.web.uri });
+          }
+        }
+      }
+
+      const payload = {
+        paragraphs: parsed.paragraphs || [],
+        keyPoints: parsed.keyPoints || [],
+        readingTimeMinutes: parsed.readingTimeMinutes || 3,
+        sourceQuality: parsed.sourceQuality || null,
+        sources: sources.slice(0, 4),
+        fromCache: false
+      };
+
+      articleDetailCache[cacheKey] = { timestamp: Date.now(), data: payload };
+
+      return res.json(payload);
+
+    } catch (error: any) {
+      console.error("[Blog Article Detail] Error:", error.message);
+      return res.status(500).json({
+        error: "Impossible de récupérer le contenu de l'article.",
+        details: error.message
+      });
+    }
+  });
+
   // API Blog Cache representation for robust performance & quota preservation
   interface BlogCacheEntry {
     timestamp: number;
     data: {
       articles: any[];
       techTrendSummary: string;
+      fromCache?: boolean;
+      cacheSource?: string;
     };
   }
   const blogCache: Record<string, BlogCacheEntry> = {};
-  const BLOG_CACHE_DURATION = 60 * 60 * 1000; // 1-hour cache
+  const BLOG_CACHE_DURATION = 60 * 60 * 1000; // 1-hour in-memory cache
 
-  // API Blog articles route (Search Grounding, Caching & Resilient Fallback Integration)
+  // Helper: save articles to Supabase blog_cache table
+  const saveToSupabaseBlogCache = async (key: string, articles: any[], trendSummary: string, source: string = 'gemini') => {
+    try {
+      // 1. Save trend summary to the old blog_cache table
+      await supabase.from('blog_cache').upsert({
+        tech_key: key,
+        trend_summary: trendSummary,
+        fetched_at: new Date().toISOString(),
+        source: source
+      }, { onConflict: 'tech_key' });
+
+      // 2. Save articles individually
+      if (articles && articles.length > 0) {
+        const rowsToInsert = articles.map(a => ({
+          url: a.url,
+          title: a.title,
+          technology: a.technology || key,
+          excerpt: a.excerpt,
+          date: a.date,
+          source_name: a.sourceName || a.source_name,
+          fetched_at: new Date().toISOString()
+        }));
+
+        await supabase.from('blog_articles_cache').upsert(rowsToInsert, { onConflict: 'url' });
+      }
+
+      console.log(`[Blog DB Cache] Saved ${articles.length} articles individually for tech="${key}" to Supabase.`);
+    } catch (e: any) {
+      console.warn(`[Blog DB Cache] Could not save to Supabase: ${e.message}`);
+    }
+  };
+
+  // Helper: load articles from Supabase blog_cache table
+  const loadFromSupabaseBlogCache = async (key: string): Promise<{ articles: any[]; techTrendSummary: string; fetchedAt: string | null } | null> => {
+    try {
+      // Load trend summary
+      const { data: trendData } = await supabase
+        .from('blog_cache')
+        .select('trend_summary, fetched_at')
+        .eq('tech_key', key)
+        .single();
+
+      // Load individual accumulated articles
+      let articlesQuery = supabase
+        .from('blog_articles_cache')
+        .select('title, technology, excerpt, date, source_name, url, fetched_at')
+        .order('fetched_at', { ascending: false });
+
+      if (key && key !== "All") {
+        articlesQuery = articlesQuery.ilike('technology', `%${key}%`);
+      }
+
+      const { data: articlesData, error: articlesError } = await articlesQuery;
+
+      if (articlesError && !articlesData) return null;
+
+      const articles = articlesData ? articlesData.map(p => ({
+        title: p.title,
+        technology: p.technology,
+        excerpt: p.excerpt,
+        date: p.date,
+        sourceName: p.source_name,
+        url: p.url,
+        isCache: true
+      })) : [];
+
+      if (articles.length === 0 && !trendData) return null;
+
+      return {
+        articles,
+        techTrendSummary: trendData?.trend_summary || '',
+        fetchedAt: trendData?.fetched_at || null
+      };
+    } catch (e: any) {
+      console.warn(`[Blog DB Cache] Could not load from Supabase: ${e.message}`);
+      return null;
+    }
+  };
+
+  // Helper: load manual blog posts from Supabase
+  const loadManualBlogPosts = async (techFilter: string): Promise<any[]> => {
+    try {
+      let query = supabase
+        .from('blog_posts')
+        .select('title, technology, excerpt, date, source_name, url')
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
+
+      const { data, error } = await query;
+      if (error || !data) return [];
+
+      let posts = data.map(p => ({
+        title: p.title,
+        technology: p.technology,
+        excerpt: p.excerpt,
+        date: p.date,
+        sourceName: p.source_name,
+        url: p.url,
+        isManual: true
+      }));
+
+      if (techFilter && techFilter !== "All") {
+        const lowerFilter = techFilter.toLowerCase();
+        posts = posts.filter(p => p.technology.toLowerCase().includes(lowerFilter));
+      }
+      return posts;
+    } catch (e: any) {
+      console.warn(`[Blog Manual Posts] Could not load from Supabase: ${e.message}`);
+      return [];
+    }
+  };
+
+  // API Blog articles route (Search Grounding, DB Caching & Resilient Fallback)
   app.get("/api/blog", async (req, res) => {
     const FALLBACK_ARTICLES = [
       {
@@ -931,22 +1190,45 @@ Langage : ${chosenLanguage}`;
     const cacheKey = tech.toLowerCase();
     const now = Date.now();
 
-    // Serve from cache if available and not expired
+    // Fetch manual posts to merge them into the final result
+    const manualPosts = await loadManualBlogPosts(tech);
+
+    // Serve from in-memory cache if available and not expired (skip on forceRefresh)
     if (!forceRefresh && blogCache[cacheKey] && (now - blogCache[cacheKey].timestamp < BLOG_CACHE_DURATION)) {
-      return res.json(blogCache[cacheKey].data);
+      const cachedPayload = blogCache[cacheKey].data;
+      // Merge manual posts with cached articles (avoiding strict duplicates by URL could be done, but simple prepend is fine)
+      const mergedArticles = [...manualPosts, ...cachedPayload.articles];
+      return res.json({ ...cachedPayload, articles: mergedArticles });
     }
 
     try {
       if (!apiKey) {
-        console.warn("GEMINI_API_KEY is missing, returning default rich fallback articles.");
-        // Simply filter fallbacks if a specific tech is selected
-        const filtered = tech !== "All" 
+        console.warn("GEMINI_API_KEY is missing, trying Supabase DB cache first.");
+
+        // Try Supabase DB cache
+        const dbCached = await loadFromSupabaseBlogCache(cacheKey);
+        if (dbCached) {
+          return res.json({
+            articles: [...manualPosts, ...dbCached.articles],
+            techTrendSummary: dbCached.techTrendSummary,
+            fromCache: true,
+            cacheSource: 'database',
+            cachedAt: dbCached.fetchedAt
+          });
+        }
+
+        // Fall back to static articles
+        const filtered = tech !== "All"
           ? FALLBACK_ARTICLES.filter(a => a.technology.toLowerCase().includes(tech.toLowerCase()))
           : FALLBACK_ARTICLES;
+
+        const baseArticles = filtered.length > 0 ? filtered : FALLBACK_ARTICLES.slice(0, 3);
         
         return res.json({
-          articles: filtered.length > 0 ? filtered : FALLBACK_ARTICLES.slice(0, 3),
-          techTrendSummary: `Sélection d'articles de référence sur l'écosystème ${tech !== "All" ? tech : "High-Tech et IA"}.`
+          articles: [...manualPosts, ...baseArticles],
+          techTrendSummary: `Sélection d'articles de référence sur l'écosystème ${tech !== "All" ? tech : "High-Tech et IA"}.`,
+          fromCache: true,
+          cacheSource: 'static'
         });
       }
 
@@ -962,10 +1244,10 @@ Sur la base des résultats de recherche Google, génère exactement 5 articles d
 
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: prompt,
         config: {
-          tools: [{ googleSearch: {} }],
+          // tools: [{ googleSearch: {} }], // Commenté car le Search Grounding nécessite un quota/facturation spécifique
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -994,38 +1276,64 @@ Sur la base des résultats de recherche Google, génère exactement 5 articles d
 
       const text = response.text || "{}";
       const parsed = JSON.parse(text.trim());
-      
+
       const payload = {
         articles: parsed.articles || [],
-        techTrendSummary: parsed.techTrendSummary || `Tendances sur l'écosystème ${tech !== "All" ? tech : "High-Tech"}.`
+        techTrendSummary: parsed.techTrendSummary || `Tendances sur l'écosystème ${tech !== "All" ? tech : "High-Tech"}.`,
+        fromCache: false,
+        cacheSource: 'live' as string
       };
 
-      // Cache successfully retrieved payload
+      // Store in memory cache
       blogCache[cacheKey] = {
         timestamp: Date.now(),
         data: payload
       };
 
-      return res.json(payload);
+      // Persist to Supabase DB asynchronously (don't block the response)
+      saveToSupabaseBlogCache(cacheKey, payload.articles, payload.techTrendSummary, 'gemini').catch(() => {});
+
+      // Send response merging manual posts
+      return res.json({
+        ...payload,
+        articles: [...manualPosts, ...payload.articles]
+      });
 
     } catch (error: any) {
-      // Quiet informational log without using keywords like 'Error' or raw JSON status dumps
-      console.log(`[Blog API] Serving optimized articles (using fallback or cache) for technology: "${tech}".`);
-      
-      // If we got rate-limited/errored we can serve the expired cache if available!
-      if (blogCache[cacheKey]) {
-        console.log(`[Blog Cache] Serving previously cached articles for: ${tech}`);
-        return res.json(blogCache[cacheKey].data);
+      console.log(`[Blog API] API unavailable for tech="${tech}", trying DB cache then in-memory cache.`);
+
+      // 1. Try Supabase DB cache (persists across server restarts)
+      const dbCached = await loadFromSupabaseBlogCache(cacheKey);
+      if (dbCached) {
+        console.log(`[Blog DB Cache] Serving ${dbCached.articles.length} articles from Supabase for tech="${tech}"`);
+        return res.json({
+          articles: [...manualPosts, ...dbCached.articles],
+          techTrendSummary: dbCached.techTrendSummary,
+          fromCache: true,
+          cacheSource: 'database',
+          cachedAt: dbCached.fetchedAt
+        });
       }
 
-      // Failover safely to rich fallback articles so that the UI never breaks
-      const filtered = tech !== "All" 
+      // 2. Try in-memory cache (even if expired, better than nothing)
+      if (blogCache[cacheKey]) {
+        console.log(`[Blog Cache] Serving expired in-memory cache for: ${tech}`);
+        const cachedPayload = blogCache[cacheKey].data;
+        return res.json({ ...cachedPayload, articles: [...manualPosts, ...cachedPayload.articles], fromCache: true, cacheSource: 'memory' });
+      }
+
+      // 3. Static fallback articles (last resort)
+      const filtered = tech !== "All"
         ? FALLBACK_ARTICLES.filter(a => a.technology.toLowerCase().includes(tech.toLowerCase()))
         : FALLBACK_ARTICLES;
 
+      const baseArticles = filtered.length > 0 ? filtered : FALLBACK_ARTICLES.slice(0, 3);
+
       return res.json({
-        articles: filtered.length > 0 ? filtered : FALLBACK_ARTICLES.slice(0, 3),
-        techTrendSummary: `Tendances générales sur l'écosystème ${tech !== "All" ? tech : "High-Tech"}. (Mode résilient actif)`
+        articles: [...manualPosts, ...baseArticles],
+        techTrendSummary: `Tendances générales sur l'écosystème ${tech !== "All" ? tech : "High-Tech"}. (Mode résilient actif)`,
+        fromCache: true,
+        cacheSource: 'static'
       });
     }
   });

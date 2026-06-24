@@ -2292,7 +2292,7 @@ Utilisez les onglets interactifs à gauche pour modifier visuellement l'arbre de
           const cleanPrev = prev.filter(line => line.text !== '🤖 Mini-Agent Hermie AI réfléchit...');
           return [
             ...cleanPrev,
-            { type: 'error', text: `Erreur Réseau : Impossible de contacter la clé d'API. (${err?.message || err})` },
+            { type: 'output', text: `[Hermie]: 😅 Mes circuits sont un peu surchargés. L'IA est temporairement indisponible !`, className: 'text-yellow-400' },
             { type: 'output', text: '>>>' }
           ];
         });

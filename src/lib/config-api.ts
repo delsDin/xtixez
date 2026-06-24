@@ -249,5 +249,71 @@ export const settleIncidentLog = async (id: string, settled: boolean = true) => 
   }
 };
 
+export interface SectionVisibility {
+  home: boolean;
+  about: boolean;
+  services: boolean;
+  skills: boolean;
+  certifications: boolean;
+  projects: boolean;
+  experience: boolean;
+  blog: boolean;
+  contact: boolean;
+  github: boolean;
+  pipeline: boolean;
+  ml_playground: boolean;
+  terminal: boolean;
+  cv_generator: boolean;
+}
 
+export const fetchSectionVisibility = async (): Promise<SectionVisibility | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('section_visibility')
+      .select('*')
+      .eq('id', 1)
+      .single();
 
+    if (error) {
+      console.warn("Error fetching section visibility:", error);
+      return null;
+    }
+
+    return {
+      home: data.home !== false,
+      about: data.about !== false,
+      services: data.services !== false,
+      skills: data.skills !== false,
+      certifications: data.certifications !== false,
+      projects: data.projects !== false,
+      experience: data.experience !== false,
+      blog: data.blog !== false,
+      contact: data.contact !== false,
+      github: data.github !== false,
+      pipeline: data.pipeline !== false,
+      ml_playground: data.ml_playground !== false,
+      terminal: data.terminal !== false,
+      cv_generator: data.cv_generator !== false,
+    };
+  } catch (error) {
+    console.error("Error fetching section visibility:", error);
+    return null;
+  }
+};
+
+export const saveSectionVisibility = async (visibility: SectionVisibility) => {
+  try {
+    const { error } = await supabase
+      .from('section_visibility')
+      .upsert({ id: 1, ...visibility });
+
+    if (error) {
+      console.error("Error saving section visibility:", error);
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  } catch (error: any) {
+    console.error("Error saving section visibility:", error);
+    return { ok: false, error: error.message };
+  }
+};

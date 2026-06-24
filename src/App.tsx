@@ -37,21 +37,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { reportIncident } from './lib/incident-logger';
 
 const MainContent = () => {
-  const { activeSection } = useNavigation();
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 450); // Fluid 450ms transition/loading feedback for a hyper-responsive yet visually premium feel
-
-    return () => clearTimeout(timer);
-  }, [activeSection]);
+  const { activeSection, setActiveSection } = useNavigation();
+  const { sectionVisibility } = useData();
 
   const renderSection = () => {
-    if (isLoading) {
-      return <SectionSkeleton section={activeSection} />;
+    // Redirect if section is hidden
+    if (sectionVisibility && activeSection !== 'home' && (sectionVisibility as any)[activeSection] === false) {
+      setTimeout(() => setActiveSection('home'), 0);
+      return <Hero />;
     }
 
     switch (activeSection) {
@@ -117,11 +110,11 @@ const MainContent = () => {
     <main className="flex-grow pt-20 flex flex-col">
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${activeSection}-${isLoading ? 'loading' : 'ready'}`}
-          initial={{ opacity: 0, y: 4 }}
+          key={activeSection}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.25, ease: "easeInOut" }}
+          exit={{ opacity: 0, y: -15 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="flex-grow flex flex-col"
         >
           {renderSection()}
@@ -156,8 +149,32 @@ function getBrowserName() {
 
 
 function AppContent() {
-  const { maintenanceConfig } = useData();
+  const { maintenanceConfig, loading } = useData();
   const { isAdminMode } = useNavigation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#080b11] text-slate-100 flex flex-col items-center justify-center relative overflow-hidden font-sans">
+        {/* Background Visual Effects */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#111827_1px,transparent_1px),linear-gradient(to_bottom,#111827_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20 pointer-events-none" />
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none animate-pulse" style={{ animationDelay: '1s' }} />
+        
+        <div className="relative flex flex-col items-center space-y-6">
+          {/* Concentric spinning loaders */}
+          <div className="relative w-16 h-16 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-4 border-slate-800/60" />
+            <div className="absolute inset-0 rounded-full border-4 border-t-accent animate-spin" />
+            <div className="absolute w-10 h-10 rounded-full border-4 border-slate-900/80" />
+            <div className="absolute w-10 h-10 rounded-full border-4 border-t-purple-500 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.2s' }} />
+          </div>
+          <span className="text-xs font-mono tracking-widest font-extrabold uppercase bg-accent/10 text-accent px-3.5 py-1.5 rounded-full border border-accent/20 animate-pulse">
+            Chargement des données...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (maintenanceConfig?.isActive && !isAdminMode) {
     return <Maintenance />;

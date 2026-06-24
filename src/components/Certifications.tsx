@@ -1,5 +1,6 @@
 import { fetchPortfolioConfig } from '../lib/config-api';
 import React, { useState, useRef, useEffect } from 'react';
+import { useData } from '../context/DataContext';
 import { MarkdownDescription } from './MarkdownDescription';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
@@ -41,74 +42,6 @@ interface Certification {
   attachmentType?: 'pdf' | 'image';
 }
 
-const defaultCertificationsList: Certification[] = [
-  {
-    id: 'gcp-pde',
-    title: 'Google Cloud Professional Data Engineer',
-    issuer: 'Google Cloud',
-    date: 'Janvier 2025',
-    credentialId: 'GCP-PDE-82910',
-    category: 'cloud-data',
-    skills: ['BigQuery', 'Dataflow', 'Dataproc', 'Cloud Composer', 'Bigtable', 'Machine Learning'],
-    description: 'Connaissance approfondie de la conception, de la sécurisation, de la mise à l\'échelle, du déploiement et du monitoring de systèmes de traitement de données performants sur GCP.',
-    verifyUrl: 'https://cloud.google.com/certification',
-    logoColor: 'from-blue-600 via-blue-400 to-indigo-500',
-    status: 'published'
-  },
-  {
-    id: 'aws-mls',
-    title: 'AWS Certified Machine Learning - Specialty',
-    issuer: 'Amazon Web Services (AWS)',
-    date: 'Novembre 2024',
-    credentialId: 'AWS-MLS-93108',
-    category: 'ml-ai',
-    skills: ['Amazon SageMaker', 'Rekognition', 'Comprehend', 'Feature Engineering', 'Model Deployment'],
-    description: 'Validation de l\'expertise dans la conception, la mise en œuvre, le déploiement et la maintenance de solutions d\'apprentissage automatique de pointe sur le cloud AWS.',
-    verifyUrl: 'https://aws.amazon.com/certification',
-    logoColor: 'from-orange-500 via-amber-500 to-yellow-400',
-    status: 'published'
-  },
-  {
-    id: 'tf-dev',
-    title: 'TensorFlow Developer Certificate',
-    issuer: 'TensorFlow / Google',
-    date: 'Juillet 2023',
-    credentialId: 'TF-DEV-30192',
-    category: 'ml-ai',
-    skills: ['Deep Learning', 'Computer Vision', 'NLP', 'Neural Networks', 'TensorFlow 2.x'],
-    description: 'Atteste d\'une capacité technique solide à concevoir, construire et optimiser des modèles d\'apprentissage profond applicables à des cas réels.',
-    verifyUrl: 'https://www.tensorflow.org/certificate',
-    logoColor: 'from-amber-600 via-orange-500 to-rose-550',
-    status: 'published'
-  },
-  {
-    id: 'meta-fed',
-    title: 'Meta Front-End Developer Professional Certificate',
-    issuer: 'Meta / Coursera',
-    date: 'Avril 2023',
-    credentialId: 'META-FED-10293',
-    category: 'dev',
-    skills: ['React', 'CSS3 / Tailwind', 'TypeScript', 'UI/UX Design', 'API Integration'],
-    description: 'Validation intensive de la maîtrise de l\'écosystème React modern, de la programmation asynchrone, du responsive design adaptatif et de l\'expérience utilisateur esthétique.',
-    verifyUrl: 'https://www.coursera.org',
-    logoColor: 'from-blue-500 via-cyan-400 to-teal-500',
-    status: 'published'
-  },
-  {
-    id: 'nv-fdl',
-    title: 'Fundamentals of Deep Learning',
-    issuer: 'NVIDIA Deep Learning Institute',
-    date: 'Février 2024',
-    credentialId: 'NV-FDL-40122',
-    category: 'ml-ai',
-    skills: ['CNNs', 'Sequence Models', 'Fine-Tuning', 'Data Augmentation', 'GPU Acceleration'],
-    description: 'Atteste d\'une maîtrise des mécanismes profonds d\'apprentissage, le fine-tuning de modèles pré-entraînés et la parallélisation de calculs sur l\'architecture GPU de pointe NVIDIA.',
-    verifyUrl: 'https://www.nvidia.com/dli',
-    logoColor: 'from-emerald-500 via-green-400 to-teal-600',
-    status: 'published'
-  }
-];
-
 export const Certifications = () => {
   const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 });
   const [activeTab, setActiveTab] = useState<'all' | 'cloud-data' | 'ml-ai' | 'dev'>('all');
@@ -116,28 +49,16 @@ export const Certifications = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewingCert, setViewingCert] = useState<Certification | null>(null);
   const [viewingDesc, setViewingDesc] = useState<Certification | null>(null);
-  const [certificationsList, setCertificationsList] = useState<Certification[]>([]);
   const printAreaRef = useRef<HTMLDivElement>(null);
 
+  const { certifications: certsData } = useData();
 
-  useEffect(() => {
-    const loadCertifications = async () => {
-      try {
-        const data = await fetchPortfolioConfig();
-        if (data) {
-          if (data.certifications && Array.isArray(data.certifications)) {
-            const publicCerts = data.certifications.filter((c: any) => c.status !== 'draft');
-            setCertificationsList(publicCerts);
-            return;
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching certifications:', err);
-      }
-      setCertificationsList(defaultCertificationsList.filter(c => c.status !== 'draft'));
-    };
-    loadCertifications();
-  }, []);
+  const certificationsList = React.useMemo(() => {
+    if (certsData && certsData.length > 0) {
+      return certsData.filter((c: any) => c.status !== 'draft');
+    }
+    return [];
+  }, [certsData]);
 
   const handleCopy = (id: string, credId: string) => {
     navigator.clipboard.writeText(credId);

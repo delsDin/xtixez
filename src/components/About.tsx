@@ -1,51 +1,23 @@
-import { fetchPortfolioConfig } from '../lib/config-api';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
 import { useNavigation } from '../context/NavigationContext';
+import { useData } from '../context/DataContext';
 
 export const About = () => {
   const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.2 });
 
-  const [config, setConfig] = useState({
-    aboutTitle: "",
-    aboutParagraphs: [] as string[],
-    aboutCitations: [] as string[]
-  });
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const { generalInfo, loading: isDataLoading } = useData();
 
-  // Load configuration dynamically
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await fetchPortfolioConfig();
-        if (data) {
-          setConfig({
-            aboutTitle: data.aboutTitle || "À propos de moi",
-            aboutParagraphs: Array.isArray(data.aboutParagraphs) && data.aboutParagraphs.length > 0 
-              ? data.aboutParagraphs 
-              : [],
-            aboutCitations: Array.isArray(data.aboutCitations) && data.aboutCitations.length > 0 
-              ? data.aboutCitations 
-              : []
-          });
-        }
-      } catch (e) {
-        console.error("Error loaded About config:", e);
-      } finally {
-        setIsDataLoading(false);
-      }
-    };
-
-    fetchConfig();
-
-    const handleConfigUpdate = () => {
-      fetchConfig();
-    };
-
-    window.addEventListener('portfolio_config_updated', handleConfigUpdate);
-    return () => window.removeEventListener('portfolio_config_updated', handleConfigUpdate);
-  }, []);
+  const config = React.useMemo(() => ({
+    aboutTitle: generalInfo?.about_title || "À propos de moi",
+    aboutParagraphs: Array.isArray(generalInfo?.about_paragraphs) && generalInfo.about_paragraphs.length > 0 
+      ? generalInfo.about_paragraphs 
+      : [],
+    aboutCitations: Array.isArray(generalInfo?.about_citations) && generalInfo.about_citations.length > 0 
+      ? generalInfo.about_citations 
+      : []
+  }), [generalInfo]);
 
   const citations = config.aboutCitations;
 

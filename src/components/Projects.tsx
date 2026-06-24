@@ -277,34 +277,19 @@ export const Projects = () => {
   const [projectsList, setProjectsList] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<string[]>(['Dev', 'Data', 'Autres']);
 
-  const fetchProjects = async () => {
-    try {
-      const data = await fetchPortfolioConfig();
-        if (data) {
-        let updated = false;
-        if (data.projects && Array.isArray(data.projects)) {
-          const publicProjects = data.projects.filter((p: any) => p.status !== 'draft');
-          setProjectsList(publicProjects);
-          updated = true;
-        }
-        if (data.projectCategories && Array.isArray(data.projectCategories)) {
-          setCategoriesList(data.projectCategories);
-        }
-        if (updated) return;
-      }
-    } catch (e) {
-      console.error("Error loading projects config:", e);
-    }
-    const publicFallback = projectsData.filter((p: any) => p.status !== 'draft');
-    setProjectsList(publicFallback);
-    setCategoriesList(['Dev', 'Data', 'Autres']);
-  };
-
   useEffect(() => {
-    fetchProjects();
-    window.addEventListener('portfolio_config_updated', fetchProjects);
-    return () => window.removeEventListener('portfolio_config_updated', fetchProjects);
-  }, []);
+    if (projectsData && projectsData.length > 0) {
+      const publicProjects = projectsData.filter((p: any) => p.status !== 'draft');
+      setProjectsList(publicProjects);
+      
+      const uniqueCats = Array.from(new Set(publicProjects.map((p: any) => p.category))).filter(Boolean) as string[];
+      if (uniqueCats.length > 0) {
+        setCategoriesList(uniqueCats);
+      }
+    } else {
+      setProjectsList([]);
+    }
+  }, [projectsData]);
 
   // Get original set of projects for category
   const categoryProjects = filter === 'Tous' 

@@ -1,5 +1,6 @@
 import { fetchPortfolioConfig } from '../lib/config-api';
 import React, { useState, useMemo, useEffect } from 'react';
+import { useData } from '../context/DataContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   CheckCircle, Shield, Award, Cpu, Code2, Database, Brain, ArrowUpRight, Zap
@@ -129,31 +130,17 @@ export const RadarSkillsChart: React.FC = () => {
   const [hoveredSkill, setHoveredSkill] = useState<SkillItem | null>(null);
   const [skillsList, setSkillsList] = useState<any[]>([]);
 
-  const fetchSkills = async () => {
-    try {
-      const data = await fetchPortfolioConfig();
-        if (data) {
-        if (data.skills && Array.isArray(data.skills)) {
-          setSkillsList(data.skills);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    // Fallback static structure
-    setSkillsList([
-      { id: 'development', title: 'Développement', skills: [] },
-      { id: 'data-science', title: 'Data Science', skills: [] },
-      { id: 'autres', title: 'Autres', skills: [] }
-    ]);
-  };
+  const { skills: skillsData } = useData();
 
   useEffect(() => {
-    fetchSkills();
-    window.addEventListener('portfolio_config_updated', fetchSkills);
-    return () => window.removeEventListener('portfolio_config_updated', fetchSkills);
-  }, []);
+    if (skillsData) {
+      setSkillsList([
+        { id: 'dev', title: 'Développement', skills: skillsData.development || [] },
+        { id: 'ds', title: 'Data Science', skills: skillsData.dataScience || [] },
+        { id: 'autres', title: 'Autres', skills: skillsData.autres || [] }
+      ]);
+    }
+  }, [skillsData]);
 
   // Combine skills to make lists for each view category
   const activeSkillsList = useMemo<SkillItem[]>(() => {
@@ -367,7 +354,7 @@ export const RadarSkillsChart: React.FC = () => {
               className="transition-colors duration-500"
               initial={{ scale: 0.1, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 120, damping: 15 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20 }}
             />
 
             {/* Invisible hover-trigger segments for outer sections targeting easier mobile touch */}
