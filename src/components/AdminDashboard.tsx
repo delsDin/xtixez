@@ -1464,7 +1464,7 @@ export const AdminDashboard: React.FC = () => {
   const handleTriggerGithubSync = async () => {
     setIsSyncingGithub(true);
     try {
-      const response = await fetch('/api/admin/github/sync', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/github/sync`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${adminToken}`

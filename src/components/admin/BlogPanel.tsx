@@ -175,7 +175,7 @@ export const BlogPanel: React.FC = () => {
   const syncCacheKey = async (techKey: string) => {
     setIsSyncing(techKey);
     try {
-      const res = await fetch(`/api/blog?tech=${encodeURIComponent(techKey === 'all' ? 'All' : techKey)}&refresh=true`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/blog?tech=${encodeURIComponent(techKey === 'all' ? 'All' : techKey)}&refresh=true`);
       if (!res.ok) throw new Error('API unavailable');
       showStatus(`✓ Cache "${techKey}" synchronisé avec succès.`, 'success');
       await loadCache();

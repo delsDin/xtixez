@@ -63,7 +63,7 @@ export const GithubProjects = () => {
     setError(null);
     setWarning(null);
     try {
-      const url = `/api/github/repos${forceRefresh ? '?refresh=true' : ''}`;
+      const url = `${import.meta.env.VITE_API_URL || ''}/api/github/repos${forceRefresh ? '?refresh=true' : ''}`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Erreur serveur: Séquence de retour ${res.status}`);

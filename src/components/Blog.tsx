@@ -89,7 +89,7 @@ const ArticleModal = ({ article, onClose, getTechBadgeStyle }: ArticleModalProps
       tech:  article.technology,
     });
 
-    fetch(`/api/blog/article?${params.toString()}`)
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/blog/article?${params.toString()}`)
       .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error);
@@ -526,7 +526,7 @@ export const Blog = () => {
     setCacheSource(null);
     setCachedAt(null);
     try {
-      const url = `/api/blog?tech=${encodeURIComponent(tech)}&refresh=${forceRefresh ? 'true' : 'false'}`;
+      const url = `${import.meta.env.VITE_API_URL || ''}/api/blog?tech=${encodeURIComponent(tech)}&refresh=${forceRefresh ? 'true' : 'false'}`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error("Impossible de joindre l'API d'actualités.");

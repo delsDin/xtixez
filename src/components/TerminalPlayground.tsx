@@ -2248,7 +2248,7 @@ Utilisez les onglets interactifs à gauche pour modifier visuellement l'arbre de
           { role: 'user' as const, parts: [{ text: question }] }
         ];
 
-        const response = await fetch('/api/ask', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/ask`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

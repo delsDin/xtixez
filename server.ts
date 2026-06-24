@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -16,6 +17,8 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
+  // Middleware
+  app.use(cors());
   // Body parser limit configuration
   app.use(express.json({ limit: "20mb" }));
 
@@ -1345,10 +1348,11 @@ Sur la base des résultats de recherche Google, génère exactement 5 articles d
     }
   });
 
+  const httpServer = http.createServer(app);
+
   // Serve static items / Vite handling
   if (process.env.NODE_ENV !== "production") {
     (async () => {
-      const httpServer = http.createServer(app);
       const isHmrDisabled = process.env.DISABLE_HMR === "true";
       const vite = await createViteServer({
         server: {
@@ -1365,6 +1369,15 @@ Sur la base des résultats de recherche Google, génère exactement 5 articles d
         console.log(`Server running on http://localhost:${PORT}`);
       });
     })();
+  } else {
+    // En production sur Render, on sert l'application compilée
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+    
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`Production server running on port ${PORT}`);
+    });
   }
-
-export default app;

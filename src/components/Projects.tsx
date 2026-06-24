@@ -16,7 +16,7 @@ const ProjectModal = ({ project, onClose }: { project: any; onClose: () => void 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/project-updates', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/project-updates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: project.title, techs: project.techs })

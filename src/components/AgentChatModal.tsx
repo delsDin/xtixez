@@ -86,7 +86,7 @@ export const AgentChatModal: React.FC<AgentChatModalProps> = ({ isOpen, onClose 
         content: m.content
       }));
 
-      const res = await fetch('/api/chat?stream=true', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/chat?stream=true`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
