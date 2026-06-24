@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
   // Body parser limit configuration
   app.use(express.json({ limit: "20mb" }));
@@ -1351,7 +1351,7 @@ Sur la base des résultats de recherche Google, génère exactement 5 articles d
         },
         appType: "spa",
       });
-      app.use(vite.middlewares);
+      app.use(vite.middlewares as any);
       
       httpServer.listen(PORT, "0.0.0.0", () => {
         console.log(`Server running on http://localhost:${PORT}`);
