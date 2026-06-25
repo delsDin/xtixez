@@ -1,6 +1,12 @@
 import { supabase } from './supabase';
 
-export const fetchPortfolioConfig = async () => {
+const CONFIG_CACHE_KEY = 'stisx_config_api_cache';
+let activeConfigPromise: Promise<any> | null = null;
+let cachedConfig: any | null = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 10 * 1000; // 10 seconds
+
+const performFetch = async () => {
   try {
     const [
       { data: generalInfo },
@@ -11,7 +17,8 @@ export const fetchPortfolioConfig = async () => {
       { data: services },
       { data: projects },
       { data: flatSkills },
-      { data: experiences }
+      { data: experiences },
+      { data: projectCats }
     ] = await Promise.all([
       supabase.from('general_info').select('*').single(),
       supabase.from('cv_config').select('*').single(),
@@ -21,7 +28,8 @@ export const fetchPortfolioConfig = async () => {
       supabase.from('services').select('*').order('id', { ascending: true }),
       supabase.from('projects').select('*').order('id', { ascending: true }),
       supabase.from('skills').select('*').order('level', { ascending: false }),
-      supabase.from('experiences').select('*').order('id', { ascending: true })
+      supabase.from('experiences').select('*').order('id', { ascending: true }),
+      supabase.from('project_categories').select('*').order('id', { ascending: true })
     ]);
 
     // Reconstruct skills by category
@@ -40,7 +48,7 @@ export const fetchPortfolioConfig = async () => {
     }
     const structuredSkills = Object.values(skillsByCategory);
 
-    return {
+    const result = {
       ownerName: generalInfo?.owner_name || '',
       ownerTitlePrefix: generalInfo?.owner_title_prefix || '',
       ownerTitleSuffix: generalInfo?.owner_title_suffix || '',
@@ -118,16 +126,64 @@ export const fetchPortfolioConfig = async () => {
         useCases: s.use_cases || [],
         technologies: s.technologies || [],
         duration: s.duration || '',
-        deliverables: s.deliverables || []
+        deliverables: s.deliverables || [],
+        status: s.status || 'published'
       })) : [],
       projects: projects || [],
+      projectCategories: projectCats ? projectCats.map((c: any) => c.name) : [],
       skills: structuredSkills || [],
       experiences: experiences || []
     };
+    
+    cachedConfig = result;
+    lastFetchTime = Date.now();
+    try {
+      localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(result));
+    } catch(e) {}
+    
+    return result;
   } catch (error) {
     console.error("Error fetching config from Supabase:", error);
     return {} as any;
   }
+};
+
+export const fetchPortfolioConfig = async (forceRefresh = false) => {
+  // 1. Memory cache check
+  if (!forceRefresh && cachedConfig && Date.now() - lastFetchTime < CACHE_DURATION) {
+    return cachedConfig;
+  }
+
+  // 2. Local storage cache check (instant return with stale-while-revalidate)
+  if (!forceRefresh) {
+    try {
+      const local = localStorage.getItem(CONFIG_CACHE_KEY);
+      if (local) {
+        const parsed = JSON.parse(local);
+        
+        // Background revalidate if it's been more than CACHE_DURATION
+        if (Date.now() - lastFetchTime > CACHE_DURATION && !activeConfigPromise) {
+          activeConfigPromise = performFetch().finally(() => {
+            activeConfigPromise = null;
+          });
+        }
+        
+        return parsed;
+      }
+    } catch(e) {}
+  }
+
+  // 3. Prevent multiple concurrent requests
+  if (!forceRefresh && activeConfigPromise) {
+    return activeConfigPromise;
+  }
+
+  // 4. Do the actual fetch
+  activeConfigPromise = performFetch().finally(() => {
+    activeConfigPromise = null;
+  });
+  
+  return activeConfigPromise;
 };
 
 export const fetchMaintenanceConfig = async () => {

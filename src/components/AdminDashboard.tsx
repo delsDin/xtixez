@@ -42,68 +42,99 @@ interface AdminMetrics {
 export const AdminDashboard: React.FC = () => {
   const saveToSupabase = async (payload: any) => {
     try {
-      if (payload.projects) {
-        for (const p of payload.projects) {
-          await supabase.from('projects').upsert(p);
+      if (payload.projects && payload.projects.length > 0) {
+        const dbProjects = payload.projects.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          category: p.category,
+          image: p.image,
+          techs: p.techs,
+          description: p.description,
+          details: p.details,
+          github: p.github,
+          demo: p.demo,
+          status: p.status
+        }));
+        await supabase.from('projects').upsert(dbProjects);
+      }
+      if (payload.projectCategories) {
+        const { data: currentData } = await supabase.from('project_categories').select('name');
+        const currentCats = currentData ? currentData.map(c => c.name) : [];
+        
+        const toDelete = currentCats.filter(c => !payload.projectCategories.includes(c));
+        if (toDelete.length > 0) {
+          await supabase.from('project_categories').delete().in('name', toDelete);
+        }
+        
+        const toAdd = payload.projectCategories.filter((c: string) => !currentCats.includes(c));
+        if (toAdd.length > 0) {
+          await supabase.from('project_categories').insert(toAdd.map((name: string) => ({ name })));
         }
       }
-      if (payload.experiences) {
-        for (const e of payload.experiences) {
-          await supabase.from('experiences').upsert(e);
-        }
+      if (payload.experiences && payload.experiences.length > 0) {
+        const dbExperiences = payload.experiences.map((e: any) => ({
+          id: e.id,
+          role: e.role,
+          company: e.company,
+          period: e.period,
+          description: e.description,
+          details: e.details,
+          technologies: e.technologies,
+          achievements: e.achievements,
+          status: e.status
+        }));
+        await supabase.from('experiences').upsert(dbExperiences);
       }
-      if (payload.services) {
-        for (const s of payload.services) {
-          const dbService = {
-            id: s.id,
-            title: s.title,
-            description: s.description,
-            long_description: s.longDescription,
-            icon_name: s.iconName,
-            color: s.color,
-            features: s.features,
-            advantages: s.advantages,
-            use_cases: s.useCases,
-            technologies: s.technologies,
-            duration: s.duration,
-            deliverables: s.deliverables
-          };
-          await supabase.from('services').upsert(dbService);
-        }
+      if (payload.services && payload.services.length > 0) {
+        const dbServices = payload.services.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          long_description: s.longDescription,
+          icon_name: s.iconName,
+          color: s.color,
+          features: s.features,
+          advantages: s.advantages,
+          use_cases: s.useCases,
+          technologies: s.technologies,
+          duration: s.duration,
+          deliverables: s.deliverables,
+          status: s.status || 'published'
+        }));
+        await supabase.from('services').upsert(dbServices);
       }
-      if (payload.testimonials) {
-        for (const t of payload.testimonials) {
-          await supabase.from('testimonials').upsert(t);
-        }
+      if (payload.testimonials && payload.testimonials.length > 0) {
+        await supabase.from('testimonials').upsert(payload.testimonials);
       }
-      if (payload.certifications) {
-        for (const c of payload.certifications) {
-          const dbCert = {
-            id: c.id,
-            title: c.title,
-            issuer: c.issuer,
-            date: c.date,
-            credential_id: c.credentialId,
-            category: c.category,
-            skills: c.skills,
-            description: c.description,
-            verify_url: c.verifyUrl,
-            logo_color: c.logoColor,
-            status: c.status,
-            attachment_url: c.attachmentUrl,
-            attachment_type: c.attachmentType
-          };
-          await supabase.from('certifications').upsert(dbCert);
-        }
+      if (payload.certifications && payload.certifications.length > 0) {
+        const dbCerts = payload.certifications.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          issuer: c.issuer,
+          date: c.date,
+          credential_id: c.credentialId,
+          category: c.category,
+          skills: c.skills,
+          description: c.description,
+          verify_url: c.verifyUrl,
+          logo_color: c.logoColor,
+          status: c.status,
+          attachment_url: c.attachmentUrl,
+          attachment_type: c.attachmentType
+        }));
+        await supabase.from('certifications').upsert(dbCerts);
       }
       if (payload.skills) {
-        // Need to flatten the categorized skills into rows
+        // Since frontend manages skills as a fully reconstructed grouped array without DB IDs,
+        // the most robust sync method is to clear and re-insert.
+        // We use an always-true condition to delete all rows.
+        await supabase.from('skills').delete().neq('id', -1);
+        
         const flatSkills = [];
         for (const cat of payload.skills) {
           if (cat.skills) {
             for (const s of cat.skills) {
               flatSkills.push({
-                id: `${cat.id}-${s.name.replace(/\s+/g, '-').toLowerCase()}`,
                 category: cat.id,
                 name: s.name,
                 level: s.level
@@ -112,7 +143,7 @@ export const AdminDashboard: React.FC = () => {
           }
         }
         if (flatSkills.length > 0) {
-          await supabase.from('skills').upsert(flatSkills);
+          await supabase.from('skills').insert(flatSkills);
         }
       }
       // General Info mapped from payload root
@@ -579,6 +610,7 @@ export const AdminDashboard: React.FC = () => {
   const [srvIconName, setSrvIconName] = useState('chart');
   const [srvColor, setSrvColor] = useState('bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400');
   const [srvDuration, setSrvDuration] = useState('');
+  const [srvStatus, setSrvStatus] = useState<'published' | 'draft'>('published');
   
   const [srvFeatures, setSrvFeatures] = useState<string[]>([]);
   const [srvAdvantages, setSrvAdvantages] = useState<string[]>([]);
@@ -767,9 +799,9 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Fetch Homepage Config from API
-  const fetchHomeConfig = async () => {
+  const fetchHomeConfig = async (forceRefresh = false) => {
     try {
-      const data = await fetchPortfolioConfig();
+      const data = await fetchPortfolioConfig(forceRefresh);
         if (data) {
         setHomeName(data.ownerName || '');
         setHomeTitlePrefix(data.ownerTitlePrefix || '');
@@ -1242,9 +1274,6 @@ export const AdminDashboard: React.FC = () => {
   const fetchAdminData = async () => {
     setIsRefreshing(true);
     try {
-      // 1. Fetch Metrics (Fallback simulation if needed)
-      // Since the backend is now fully Serverless/Supabase, we simulate telemetry metrics
-      // or derive them from database rows.
       setMetrics({
         uptime: "99.99%",
         cpuUsage: "4.2%",
@@ -1255,18 +1284,14 @@ export const AdminDashboard: React.FC = () => {
         version: "2.1.0"
       });
       
-      // 2. Fetch Visit Stats
-      await fetchVisitStats();
-
-      // 4. Fetch Received Contact Messages
-      await fetchContactMessages();
-
-      // 5. Fetch Generated Resumes List
-      await fetchGeneratedResumes();
-
-      // 6. Fetch Section Visibility
-      const vis = await fetchSectionVisibility();
-      if (vis) setVisibilitySettings(vis);
+      await Promise.all([
+        fetchVisitStats(),
+        fetchContactMessages(),
+        fetchGeneratedResumes(),
+        fetchSectionVisibility().then(vis => {
+          if (vis) setVisibilitySettings(vis);
+        })
+      ]);
     } catch (e) {
       console.error("Error loaded administrative assets:", e);
     } finally {
@@ -1449,7 +1474,7 @@ export const AdminDashboard: React.FC = () => {
 
       if (!genError && !gitError) {
         showStatus("Configuration GitHub enregistrée avec succès !", "success");
-        fetchHomeConfig();
+        fetchHomeConfig(true);
       } else {
         const err = genError || gitError;
         showStatus(err?.message || "Une erreur est survenue lors de l'enregistrement.", "err");
@@ -2428,6 +2453,7 @@ export const AdminDashboard: React.FC = () => {
     setSrvIconName('chart');
     setSrvColor('bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400');
     setSrvDuration('');
+    setSrvStatus('published');
     setSrvFeatures([]);
     setSrvAdvantages([]);
     setSrvUseCases([]);
@@ -2450,6 +2476,7 @@ export const AdminDashboard: React.FC = () => {
     setSrvIconName(srv.iconName || 'chart');
     setSrvColor(srv.color || 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400');
     setSrvDuration(srv.duration || '');
+    setSrvStatus(srv.status || 'published');
     setSrvFeatures([...(srv.features || [])]);
     setSrvAdvantages([...(srv.advantages || [])]);
     setSrvUseCases([...(srv.useCases || [])]);
@@ -2506,6 +2533,7 @@ export const AdminDashboard: React.FC = () => {
       useCases: srvUseCases,
       technologies: srvTechnologies,
       deliverables: srvDeliverables,
+      status: srvStatus
     };
 
     let updatedList = [];
@@ -3561,9 +3589,16 @@ export const AdminDashboard: React.FC = () => {
                               <span className="font-mono text-xs font-bold uppercase">{srv.iconName?.substring(0, 4)}</span>
                             </div>
                             <div>
-                              <h4 className="text-sm font-bold text-slate-100 group-hover:text-emerald-400 transition-colors">
-                                {srv.title}
-                              </h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-bold text-slate-100 group-hover:text-emerald-400 transition-colors">
+                                  {srv.title}
+                                </h4>
+                                {srv.status === 'draft' && (
+                                  <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                    Brouillon
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wide">
                                 ID: {srv.id} | {srv.duration || 'Durée non définie'}
                               </p>
@@ -3635,8 +3670,8 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Title & ID row */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Title & ID & Status row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <div>
                             <label className="block text-[9px] font-mono text-slate-400 uppercase font-black tracking-wider mb-1">
                               ID Unique (Slug URL)
@@ -3663,6 +3698,27 @@ export const AdminDashboard: React.FC = () => {
                               placeholder="Analyse & Modélisation des Données"
                               className="w-full py-2 px-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-emerald-500 font-sans"
                             />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-mono text-slate-400 uppercase font-black tracking-wider mb-1">
+                              Statut
+                            </label>
+                            <div className="flex border border-slate-800 rounded-xl overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setSrvStatus('published')}
+                                className={`flex-1 py-2 px-2 text-[10px] font-black uppercase tracking-wider transition-colors ${srvStatus === 'published' ? 'bg-emerald-500/20 text-emerald-400 border-r border-emerald-500/30' : 'bg-slate-950 text-slate-500 hover:text-slate-300 border-r border-slate-800'}`}
+                              >
+                                Publié
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSrvStatus('draft')}
+                                className={`flex-1 py-2 px-2 text-[10px] font-black uppercase tracking-wider transition-colors ${srvStatus === 'draft' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-950 text-slate-500 hover:text-slate-300'}`}
+                              >
+                                Brouillon
+                              </button>
+                            </div>
                           </div>
                         </div>
 
