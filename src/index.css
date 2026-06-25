@@ -20,7 +20,7 @@ html {
 }
 
 body {
-  @apply antialiased;
+  @apply antialiased bg-slate-50 text-slate-900 dark:bg-[#0b0f19] dark:text-slate-50 transition-colors duration-300;
 }
 
 /* Custom scrollbar */
