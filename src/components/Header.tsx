@@ -19,7 +19,7 @@ export const Header = () => {
     setShowHopsonRemovedModal,
     hasSuspiciousAlert
   } = useNavigation();
-  const { skills, projects, experiences, testimonials, sectionVisibility } = useData();
+  const { skills, projects, experiences, testimonials, sectionVisibility, services } = useData();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -129,20 +129,28 @@ export const Header = () => {
           (window as any).isSpeakingDescriptiveAnswer = false;
         }
         
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        // Clean markdown and formatting characters before speaking
+        const cleanedForSpeech = textToSpeak
+          .replace(/[*_#`~[\]]/g, '')
+          .replace(/\bM\./g, 'Marcel');
+          
+        const utterance = new SpeechSynthesisUtterance(cleanedForSpeech);
 
         utterance.onstart = () => {
           setIsTtsSpeaking(true);
+          (window as any).isTtsSpeakingActive = true;
           if (isDescriptive) {
             (window as any).isSpeakingDescriptiveAnswer = true;
           }
         };
         utterance.onend = () => {
           setIsTtsSpeaking(false);
+          (window as any).isTtsSpeakingActive = false;
           (window as any).isSpeakingDescriptiveAnswer = false;
         };
         utterance.onerror = () => {
           setIsTtsSpeaking(false);
+          (window as any).isTtsSpeakingActive = false;
           (window as any).isSpeakingDescriptiveAnswer = false;
         };
 
@@ -306,14 +314,6 @@ export const Header = () => {
       'désactive le mode administrateur', 'desactive le mode administrateur', 'désactive mode administrateur', 'desactive mode administrateur',
       'désactive admin', 'desactive admin', 'quitter l\'admin', 'quitter admin', 'déconnexion admin', 'deconnexion admin'
     ];
-    const hopsonActivateKeywords = [
-      'activer le mode hopson', 'activer mode hopson', 'activer le mode reine', 'activer mode reine',
-      'protocole romantique', 'enable hopson mode', 'love protocol', 'mode reine'
-    ];
-    const hopsonDeactivateKeywords = [
-      'désactiver le mode hopson', 'désactiver mode hopson', 'désactiver le mode reine', 'désactiver mode reine',
-      'disable hopson mode', 'quitter mode reine'
-    ];
     const systemReportKeywords = [
       'rapport de performance', 'rapport de performance du système', 'rapport système', 'rapport systeme',
       'status système', 'status systeme', 'system report', 'system health report', 'diagnostic système', 'diagnostic systeme'
@@ -353,44 +353,6 @@ export const Header = () => {
       );
       setVoiceFeedback({
         text: isEn ? "🔒 ADMIN ACCESS REVOKED" : "🔒 SESSION ADMINISTRATEUR DÉCONNECTÉE",
-        type: 'info'
-      });
-      setTimeout(() => setVoiceFeedback({ text: '', type: null }), 5000);
-      return;
-    }
-
-    if (hopsonActivateKeywords.some(kw => cleanedText === kw || cleanedText.includes(kw))) {
-      setIsHopsonMode(true);
-      const msg = `Désolé ! Je suis Hermie, l'assistant de ${ownerName || 'Dels'} et il m'a demandé de supprimer le mode Hopson...`;
-      speakText(msg);
-      logVoiceCommandToHistory(
-        transcript,
-        'navigation',
-        isEn ? `Hopson mode requested but disabled by ${ownerName}` : `Mode Hopson requis mais désactivé par ${ownerName}`,
-        'error'
-      );
-      setVoiceFeedback({
-        text: `Désolé ! Je suis Hermie, l'assistant de ${ownerName || 'Dels'} et il m'a demandé de supprimer le mode Hopson...`,
-        type: 'error'
-      });
-      setTimeout(() => setVoiceFeedback({ text: '', type: null }), 6000);
-      return;
-    }
-
-    if (hopsonDeactivateKeywords.some(kw => cleanedText === kw || cleanedText.includes(kw))) {
-      setIsHopsonMode(false);
-      const msg = isEn
-        ? "Hopson mode is already permanently deactivated."
-        : "Le mode Hopson est déjà désactivé de façon permanente.";
-      speakText(msg);
-      logVoiceCommandToHistory(
-        transcript,
-        'navigation',
-        isEn ? "Hopson mode is already inactive" : "Le mode Hopson est déjà inactif",
-        'info'
-      );
-      setVoiceFeedback({
-        text: isEn ? "🔓 HOPSON MODE IS INACTIVE" : "🔓 LE MODE HOPSON EST INACTIF",
         type: 'info'
       });
       setTimeout(() => setVoiceFeedback({ text: '', type: null }), 5000);
@@ -492,7 +454,7 @@ export const Header = () => {
               finalSpeech += "This is a full presentation of my profile. Feel free to download my complete CV or reach out via the contact form!";
 
               const topSkills = data.skills && data.skills.length > 0 ? data.skills.slice(0, 2).map((c: any) => c.title).join(', ') : 'Dev & Data';
-              const latestRole = data.experiences && data.experiences.length > 0 ? (data.experiences[0]?.title + ' @ ' + data.experiences[0]?.company) : 'Senior Expert';
+              const latestRole = data.experiences && data.experiences.length > 0 ? (data.experiences[0]?.title + ' @ ' + data.experiences[0]?.company) : 'Junior';
               finalVisual = `📋 Profile Summary:\n• Name: ${ownerName}\n• Role: ${ownerTitle}\n• Fields: ${topSkills}\n• Career: ${latestRole}\n\nPlease contact me in the form below!`;
 
             } else {
@@ -723,9 +685,7 @@ export const Header = () => {
       }
     }
 
-    // Advanced Speech Conversational Answers (responds verbally without scrolling)
-    let replySpeech = '';
-    
+    // Advanced Speech Conversational Answers & Navigation
     const navIndicators = [
       'aller dans', 'aller à', 'aller au', 'aller aux', 'aller sur', 'va dans', 'va à', 'va au', 'va aux', 'va sur',
       'visiter', 'visite', 'naviguer', 'naviguer vers', 'navigue vers', 'montre', 'montrer', 'afficher', 'affiche',
@@ -733,193 +693,54 @@ export const Header = () => {
     ];
     const hasNavIntent = navIndicators.some(indicator => cleanedText.includes(indicator));
 
-    if (!hasNavIntent) {
-      if (isHopsonMode) {
-        if (isEn) {
-          if (cleanedText.includes('who') || cleanedText.includes('present') || cleanedText.includes('about') || cleanedText.includes('story') || cleanedText.includes('who are you')) {
-            replySpeech = "We are Mike and Dels. This secret space celebrates our absolute connection and our unique love story.";
-          } else if (cleanedText.includes('surprise') || cleanedText.includes('secret')) {
-            replySpeech = "Shhh! It's a secret. Unlock the magic surprises to find out more.";
-          } else if (cleanedText.includes('skill') || cleanedText.includes('succeed') || cleanedText.includes('expert')) {
-            replySpeech = "Our main skills are infinite love, deep tenderness, absolute complicity, and mutual listening.";
-          }
-        } else {
-          if (cleanedText.includes('qui') || cleanedText.includes('présente') || cleanedText.includes('propos') || cleanedText.includes('histoire') || cleanedText.includes('qui es-tu')) {
-            replySpeech = "Nous sommes Mike et Dels. Cet espace secret célèbre notre complicité absolue et notre histoire unique d'amour.";
-          } else if (cleanedText.includes('surprise') || cleanedText.includes('secret')) {
-            replySpeech = "Chut ! C'est un secret. Débloque les surprises magiques pour en savoir plus.";
-          } else if (cleanedText.includes('compétence') || cleanedText.includes('sait faire') || cleanedText.includes('skills')) {
-            replySpeech = "Nos principales compétences sont l'amour infini, la tendresse, la complicité et l'écoute mutuelle.";
-          }
-        }
-      } else {
-        if (isEn) {
-          if (cleanedText.includes('skill') || cleanedText.includes('know-how') || cleanedText.includes('know how') || cleanedText.includes('technologies') || cleanedText.includes('sais faire') || cleanedText.includes('capable of') || cleanedText.includes('do') || cleanedText.includes('competence') || cleanedText.includes('competences')) {
-            replySpeech = "Dels is an expert in full-stack engineering and data science. His core skills include Python, React, Node.js, TypeScript, Tailwind CSS, and PostgreSQL. In data science, he is highly proficient in Pandas, Scikit-learn, TensorFlow, and machine learning models.";
-          } else if (cleanedText.includes('who are you') || cleanedText.includes('present') || cleanedText.includes('who is dels') || cleanedText.includes('biography') || cleanedText.includes('tell me about you') || cleanedText.includes('introduce')) {
-            replySpeech = "I am Dels, a full-stack developer and Data Scientist. I am absolutely passionate about the bridge between beautiful web products and artificial intelligence. I help clients build responsive, intelligent, and highly optimized platforms.";
-          } else if (cleanedText.includes('project') || cleanedText.includes('creation') || cleanedText.includes('creations') || cleanedText.includes('projects')) {
-            replySpeech = "Dels has designed spectacular projects, including a predictive sales and e-commerce analytics dashboard, an medical image classification scanner, and an interactive real-time sentiment analysis engine powered by BERT.";
-          } else if (cleanedText.includes('experience') || cleanedText.includes('career') || cleanedText.includes('resume') || cleanedText.includes('cv') || cleanedText.includes('worked') || cleanedText.includes('background')) {
-            replySpeech = "Dels has rich professional background including roles like Senior Data Scientist at Tech Innovators, building automated ETL lines, and Lead Full-Stack Coder at WebSolutions Agency.";
-          } else if (cleanedText.includes('contact') || cleanedText.includes('write') || cleanedText.includes('reach') || cleanedText.includes('email') || cleanedText.includes('message')) {
-            replySpeech = "You can easily contact Dels by filling out the form at the bottom of this portfolio page. He looks forward to cooperating with you.";
-          }
-        } else {
-          if (cleanedText.includes('compétence') || cleanedText.includes('sait faire') || cleanedText.includes('savoir faire') || cleanedText.includes('skills') || cleanedText.includes('technologies') || cleanedText.includes('sais faire')) {
-            replySpeech = "Dels est expert en développement full-stack et data science. Ses compétences majeures comprennent le langage Python, et les frameworks et librairies React, Node.js, TypeScript, Tailwind CSS et PostgreSQL. En data science, il maîtrise Pandas, Scikit-learn, TensorFlow et l'apprentissage automatique.";
-          } else if (cleanedText.includes('qui es-tu') || cleanedText.includes('présente') || cleanedText.includes('qui est dels') || cleanedText.includes('biographie') || cleanedText.includes('qui est-il') || cleanedText.includes('présentation')) {
-            replySpeech = "Je suis Dels, développeur Full-Stack et Data Scientist passionné par la frontière entre le développement web et l'Intelligence Artificielle. J'aide les entreprises à transformer des données complexes en applications performantes, élégantes et intuitives.";
-          } else if (cleanedText.includes('projet') || cleanedText.includes('réalisation') || cleanedText.includes('création') || cleanedText.includes('projects')) {
-            replySpeech = "Dels a conçu plusieurs projets remarquables, comme un tableau de bord analytique e-commerce prédictif utilisant le machine learning, un modèle de détection de maladies par classification d'images médicales, et un de nos favoris : l'analyseur de sentiments en temps réel basé sur BERT.";
-          } else if (cleanedText.includes('expérience') || cleanedText.includes('parcours') || cleanedText.includes('cv') || cleanedText.includes('travaillé') || cleanedText.includes('work') || cleanedText.includes('carrière')) {
-            replySpeech = "Le parcours de Dels comprend des rôles clés comme Data Scientist Senior chez Tech Innovators, où il a développé des pipelines de données automatisés, et comme Développeur Full-Stack chez WebSolutions Agency, spécialisé dans la conception d'interfaces réactives et l'intégration de paiements.";
-          } else if (cleanedText.includes('contact') || cleanedText.includes('écrire') || cleanedText.includes('joindre') || cleanedText.includes('email') || cleanedText.includes('adresse')) {
-            replySpeech = "Vous pouvez contacter Dels facilement en remplissant le formulaire de contact en bas de page. Il se fera une grande joie d'échanger avec vous.";
-          }
-        }
-      }
-    }
-
-    if (replySpeech) {
-      speakText(replySpeech, true);
-      logVoiceCommandToHistory(
-        transcript,
-        'descriptive',
-        replySpeech,
-        'success'
-      );
-      const isMuted = localStorage.getItem('voice_mute_speak') === 'true';
-      setVoiceFeedback({
-        text: isMuted ? `IA : "${replySpeech}"` : `Audio : "${replySpeech}"`,
-        type: 'success'
-      });
-      setTimeout(() => {
-        setVoiceFeedback({ text: '', type: null });
-      }, 9000);
-      return;
-    }
-    
     const commands: Record<string, string> = isHopsonMode
       ? {
-          'accueil': 'home',
-          'home': 'home',
-          'départ': 'home',
-          'start': 'home',
-          'propos': 'about',
-          'about': 'about',
-          'histoire': 'love-stories',
-          'stories': 'love-stories',
-          'story': 'love-stories',
-          'surprise': 'surprises',
-          'surprises': 'surprises',
-          'elixir': 'elixir',
-          'élixir': 'elixir',
-          'roue': 'wheel',
-          'wheel': 'wheel',
-          'clic': 'clicker',
-          'clicker': 'clicker',
-          'code': 'romanticCoder',
-          'coder': 'romanticCoder',
-          'respi': 'breathing',
-          'breathing': 'breathing',
-          'terminal': 'terminal',
-          'console': 'terminal',
+          'accueil': 'home', 'home': 'home', 'départ': 'home', 'start': 'home',
+          'propos': 'about', 'about': 'about', 'terminal': 'terminal', 'console': 'terminal',
         }
       : {
-          'accueil': 'home',
-          'home': 'home',
-          'départ': 'home',
-          'start': 'home',
-          'début': 'home',
-          'debut': 'home',
-          'propos': 'about',
-          'about': 'about',
-          'présentation': 'about',
-          'presentation': 'about',
-          'qui es-tu': 'about',
-          'qui est-il': 'about',
-          'biographie': 'about',
-          'profil': 'about',
-          'profile': 'about',
-          'service': 'services',
-          'services': 'services',
-          'prestations': 'services',
-          'prestation': 'services',
-          'catalogue': 'services',
-          'offres': 'services',
-          'offre': 'services',
-          'compétence': 'skills',
-          'compétences': 'skills',
-          'skills': 'skills',
-          'skill': 'skills',
-          'technologie': 'skills',
-          'technologies': 'skills',
-          'savoir-faire': 'skills',
-          'savoir faire': 'skills',
-          'sais faire': 'skills',
-          'certification': 'certifications',
-          'certifications': 'certifications',
-          'diplômes': 'certifications',
-          'diplome': 'certifications',
-          'certificats': 'certifications',
-          'projet': 'projects',
-          'projets': 'projects',
-          'project': 'projects',
-          'projects': 'projects',
-          'réalisations': 'projects',
-          'realisations': 'projects',
-          'portfolio': 'projects',
-          'création': 'projects',
-          'créations': 'projects',
-          'expérience': 'experience',
-          'expériences': 'experience',
-          'experience': 'experience',
-          'experiences': 'experience',
-          'parcours': 'experience',
-          'carrière': 'experience',
-          'carriere': 'experience',
-          'cv': 'experience',
-          'resume': 'cv-generator',
-          'pipeline': 'pipeline',
-          'data pipeline': 'pipeline',
-          'visualiseur de pipeline': 'pipeline',
-          'ml': 'ml-playground',
-          'playground': 'ml-playground',
-          'machine learning': 'ml-playground',
-          'apprentissage automatique': 'ml-playground',
-          'intelligence artificielle': 'ml-playground',
-          'ia': 'ml-playground',
-          'ai': 'ml-playground',
-          'générateur cv': 'cv-generator',
-          'générateur de cv': 'cv-generator',
-          'resume builder': 'cv-generator',
-          'cv builder': 'cv-generator',
-          'generator': 'cv-generator',
-          'terminal': 'terminal',
-          'console': 'terminal',
-          'shell': 'terminal',
-          'invite de commande': 'terminal',
-          'ligne de commande': 'terminal',
-          'blog': 'blog',
-          'articles': 'blog',
-          'article': 'blog',
-          'publications': 'blog',
-          'publication': 'blog',
-          'contact': 'contact',
-          'adresse': 'contact',
-          'écrire': 'contact',
-          'écris': 'contact',
-          'joindre': 'contact',
-          'formulaire': 'contact',
+          'accueil': 'home', 'home': 'home', 'départ': 'home', 'start': 'home', 'début': 'home', 'debut': 'home',
+          'propos': 'about', 'about': 'about', 'présentation': 'about', 'presentation': 'about', 'qui es-tu': 'about',
+          'qui est-il': 'about', 'biographie': 'about', 'profil': 'about', 'profile': 'about',
+          'service': 'services', 'services': 'services', 'prestations': 'services', 'prestation': 'services',
+          'catalogue': 'services', 'offres': 'services', 'offre': 'services',
+          'compétence': 'skills', 'compétences': 'skills', 'skills': 'skills', 'skill': 'skills',
+          'technologie': 'skills', 'technologies': 'skills', 'savoir-faire': 'skills', 'savoir faire': 'skills', 'sais faire': 'skills',
+          'certification': 'certifications', 'certifications': 'certifications', 'diplômes': 'certifications', 'diplome': 'certifications', 'certificats': 'certifications',
+          'projet': 'projects', 'projets': 'projects', 'project': 'projects', 'projects': 'projects', 'réalisations': 'projects',
+          'realisations': 'projects', 'portfolio': 'projects', 'création': 'projects', 'créations': 'projects',
+          'expérience': 'experience', 'expériences': 'experience', 'experience': 'experience', 'experiences': 'experience',
+          'parcours': 'experience', 'carrière': 'experience', 'carriere': 'experience', 'cv': 'experience', 'resume': 'cv-generator',
+          'pipeline': 'pipeline', 'data pipeline': 'pipeline', 'visualiseur de pipeline': 'pipeline',
+          'ml': 'ml-playground', 'playground': 'ml-playground', 'machine learning': 'ml-playground', 'apprentissage automatique': 'ml-playground',
+          'intelligence artificielle': 'ml-playground', 'ia': 'ml-playground', 'ai': 'ml-playground',
+          'générateur cv': 'cv-generator', 'générateur de cv': 'cv-generator', 'resume builder': 'cv-generator', 'cv builder': 'cv-generator', 'generator': 'cv-generator',
+          'terminal': 'terminal', 'console': 'terminal', 'shell': 'terminal', 'invite de commande': 'terminal', 'ligne de commande': 'terminal',
+          'blog': 'blog', 'articles': 'blog', 'article': 'blog', 'publications': 'blog', 'publication': 'blog',
+          'contact': 'contact', 'adresse': 'contact', 'écrire': 'contact', 'écris': 'contact', 'joindre': 'contact', 'formulaire': 'contact',
         };
 
     let foundSection: string | null = null;
+    let isExactMatch = false;
+
     const sortedKeys = Object.keys(commands).sort((a, b) => b.length - a.length);
+    
+    // First, check for exact match (e.g., user just says "projets")
     for (const key of sortedKeys) {
-      if (cleanedText.includes(key)) {
+      if (cleanedText === key) {
         foundSection = commands[key];
+        isExactMatch = true;
         break;
+      }
+    }
+
+    // If no exact match, check if it has a nav intent AND includes a keyword
+    if (!foundSection && hasNavIntent) {
+      for (const key of sortedKeys) {
+        if (cleanedText.includes(key)) {
+          foundSection = commands[key];
+          break;
+        }
       }
     }
 
@@ -936,35 +757,9 @@ export const Header = () => {
       
       let navMsg = '';
       if (isEn) {
-        if (foundSection === 'home') navMsg = "Navigating to home page.";
-        else if (foundSection === 'about') navMsg = "Going to about page.";
-        else if (foundSection === 'skills') navMsg = "Showing my skills and technical expertise.";
-        else if (foundSection === 'services') navMsg = "Showing my services.";
-        else if (foundSection === 'certifications') navMsg = "Opening certifications.";
-        else if (foundSection === 'projects') navMsg = "Viewing my portfolio and projects.";
-        else if (foundSection === 'experience') navMsg = "Opening my career experiences.";
-        else if (foundSection === 'pipeline') navMsg = "Displaying the cloud data pipeline.";
-        else if (foundSection === 'ml-playground') navMsg = "Welcome to the machine learning playground.";
-        else if (foundSection === 'cv-generator') navMsg = "Opening the CV builder.";
-        else if (foundSection === 'terminal') navMsg = "Launching the developer interactive terminal.";
-        else if (foundSection === 'blog') navMsg = "Showing my blog publications.";
-        else if (foundSection === 'contact') navMsg = "Opening the contact details and form.";
-        else navMsg = `Directing you to ${foundSection}.`;
+        navMsg = `Directing you to ${foundSection}.`;
       } else {
-        if (foundSection === 'home') navMsg = "Retour à l'accueil.";
-        else if (foundSection === 'about') navMsg = "Direction la section de présentation.";
-        else if (foundSection === 'skills') navMsg = "Voici mes compétences et mon expertise technique.";
-        else if (foundSection === 'services') navMsg = "Affichage de la section de mes services.";
-        else if (foundSection === 'certifications') navMsg = "Navigation vers mes certifications.";
-        else if (foundSection === 'projects') navMsg = "Voici mon portfolio de projets.";
-        else if (foundSection === 'experience') navMsg = "Ouverture de mon parcours d'expériences professionnelles.";
-        else if (foundSection === 'pipeline') navMsg = "Voici le visualiseur de pipeline de données analytiques.";
-        else if (foundSection === 'ml-playground') navMsg = "Bienvenue sur l'espace d'expérimentation d'intelligence artificielle.";
-        else if (foundSection === 'cv-generator') navMsg = "Lancement de l'outil de conception de CV.";
-        else if (foundSection === 'terminal') navMsg = "Initialisation de la console de commande.";
-        else if (foundSection === 'blog') navMsg = "Voici mes publications et articles de blog.";
-        else if (foundSection === 'contact') navMsg = "Je vous montre le formulaire de contact.";
-        else navMsg = `Redirection vers la section ${foundSection}.`;
+        navMsg = `Redirection vers la section ${foundSection}.`;
       }
       speakText(navMsg);
       logVoiceCommandToHistory(
@@ -982,25 +777,126 @@ export const Header = () => {
       setTimeout(() => {
         setVoiceFeedback({ text: '', type: null });
       }, 4000);
-    } else {
-      logVoiceCommandToHistory(
-        transcript,
-        'unknown',
-        isEn ? `Command not recognized. Tried: "${transcript}"` : `Commande non reconnue. Saisie : "${transcript}"`,
-        'error'
-      );
+      return;
+    }
 
-      setVoiceFeedback({
-        text: `Commande non reconnue : "${transcript}". Essayez d'indiquer le nom d'une section.`,
-        type: 'error'
-      });
-      setTimeout(() => {
-        setVoiceFeedback({ text: '', type: null });
-      }, 4500);
+    // If it's NOT a navigation command, handle it as a conversational intent
+    setVoiceFeedback({
+      text: `Traitement de la demande : "${transcript}"...`,
+      type: 'info'
+    });
+
+    (async () => {
+      try {
+        const ownerNameText = ownerName || "le propriétaire de ce portfolio";
+        let expText = "";
+        if (experiences && experiences.length > 0) {
+          expText = experiences.map((e: any) => `- ${e.role} chez "${e.company}" (${e.period}).`).join(' ');
+        }
+        let servicesText = "";
+        if (services && services.length > 0) {
+          servicesText = services.map((s: any) => `- ${s.title}`).join(' ');
+        }
+        let projectsText = "";
+        if (projects && projects.length > 0) {
+          projectsText = projects.map((p: any) => `- ${p.title}`).join(' ');
+        }
+        let skillsText = "";
+        if (skills) {
+          const allSkills = [
+            ...(skills.development || []),
+            ...(skills.dataScience || []),
+            ...(skills.autres || [])
+          ];
+          if (allSkills.length > 0) {
+            skillsText = allSkills.map((s: any) => s.title || s.name).join(', ');
+          }
+        }
+
+        const contextMessage = `Tu es Hermie, l'assistante vocale de ${ownerNameText}.
+                                Il est Dévéloppeur FullStack junior avec une bonne connaissance avancé en Python.
+                                Actuellement, il poursuit un parcours en ML Engineering.
+                                Voici ses infos:
+                                Expériences: ${expText}
+                                Services: ${servicesText}
+                                Projets: ${projectsText}
+                                Compétences: ${skillsText}
+                                Sois très concise, courtoise et réponds à l'utilisateur de manière conversationnelle.`;
+
+        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            history: [
+              { role: 'user', content: contextMessage },
+              { role: 'assistant', content: 'Compris. Je répondrai de manière très concise et conversationnelle en me basant uniquement sur ces informations réelles.' },
+              { role: 'user', content: transcript }
+            ] 
+          })
+        });
+        
+        if (!res.ok) throw new Error('API erreur');
+        const data = await res.json();
+        const replyText = data.response || "Désolé, je n'ai pas de réponse.";
+        const uiText = replyText.replace(/[*_#`~[\]]/g, '');
+
+        speakText(uiText, true);
+        logVoiceCommandToHistory(transcript, 'descriptive', uiText, 'success');
+        
+        const isMuted = localStorage.getItem('voice_mute_speak') === 'true';
+        setVoiceFeedback({
+          text: isMuted ? `IA : "${uiText}"` : `Audio : "${uiText}"`,
+          type: 'success'
+        });
+        setTimeout(() => {
+          setVoiceFeedback({ text: '', type: null });
+        }, 9000);
+
+      } catch (e: any) {
+        console.error("Voice Assistant API Error:", e);
+        setVoiceFeedback({
+          text: `Erreur Assistant: ${e.message}`,
+          type: 'error'
+        });
+        setTimeout(() => {
+          setVoiceFeedback({ text: '', type: null });
+        }, 6000);
+      }
+    })();
+  };
+
+  const [isContinuousListening, setIsContinuousListening] = useState(false);
+  const continuousRef = React.useRef(false);
+
+  const toggleSpeechRecognition = () => {
+    if (continuousRef.current) {
+      continuousRef.current = false;
+      setIsContinuousListening(false);
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch(e){}
+      }
+      setIsListening(false);
+      setVoiceFeedback({ text: 'Microphone désactivé.', type: 'info' });
+      setTimeout(() => setVoiceFeedback({ text: '', type: null }), 3000);
+    } else {
+      continuousRef.current = true;
+      setIsContinuousListening(true);
+      startSpeechRecognition();
     }
   };
 
-  const startSpeechRecognition = () => {
+  useEffect(() => {
+    if (isContinuousListening && !isListening) {
+      const timer = setTimeout(() => {
+        if (continuousRef.current && !isListening) {
+          startSpeechRecognition(true);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isContinuousListening, isListening]);
+
+  const startSpeechRecognition = (isSilentRestart: boolean = false) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
@@ -1013,12 +909,6 @@ export const Header = () => {
     }
 
     if (isListening && recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch (e) {
-        // ignore abort issues
-      }
-      setIsListening(false);
       return;
     }
 
@@ -1041,10 +931,12 @@ export const Header = () => {
           ? "Voice Command Active! Ask a question (e.g. 'What are your skills?') or say 'Go to Projects'" 
           : "Mode Commande Vocale Actif ! Posez une question (ex: 'Quelles sont tes compétences ?') ou dites 'Aller à Projets'";
 
-        setVoiceFeedback({
-          text: defaultPrompt,
-          type: 'info'
-        });
+        if (!isSilentRestart) {
+          setVoiceFeedback({
+            text: defaultPrompt,
+            type: 'info'
+          });
+        }
       };
 
       recognition.onerror = (event: any) => {
@@ -1055,6 +947,12 @@ export const Header = () => {
           console.warn("Speech recognition warning/error event:", event.error);
         }
         setIsListening(false);
+
+        // Suppress benign notifications during continuous or silent listening
+        if (isBenign && (isSilentRestart || continuousRef.current)) {
+          return;
+        }
+
         let errorMsg = "Erreur de microphone ou d'autorisation.";
         let errType: 'error' | 'info' = 'error';
 
@@ -1086,6 +984,24 @@ export const Header = () => {
         const result = event.results[0][0];
         const transcript = result.transcript;
         const confidence = result.confidence || 0.8;
+        
+        const tr = transcript.toLowerCase().trim();
+        const stopRawKw = localStorage.getItem('voice_stop_keywords') || "c'est bon, arrête, attend, stop";
+        const stopKeywords = stopRawKw.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+        const isStop = stopKeywords.some((kw: string) => tr.includes(kw) || tr === kw);
+        
+        if (isStop) {
+          window.speechSynthesis.cancel();
+          setIsTtsSpeaking(false);
+          (window as any).isTtsSpeakingActive = false;
+          setVoiceFeedback({ text: 'Audio interrompu.', type: 'info' });
+          setTimeout(() => setVoiceFeedback({ text: '', type: null }), 3000);
+          return;
+        }
+
+        if ((window as any).isTtsSpeakingActive) {
+           return;
+        }
 
         const storedThreshold = localStorage.getItem('voice_confidence_threshold');
         const threshold = storedThreshold ? parseFloat(storedThreshold) : 0.4;
@@ -1180,6 +1096,20 @@ export const Header = () => {
           const lastResultIndex = e.resultIndex;
           const tr = e.results[lastResultIndex][0].transcript.toLowerCase().trim();
           
+          if ((window as any).isTtsSpeakingActive) {
+            const stopRawKw = localStorage.getItem('voice_stop_keywords') || "c'est bon, arrête, attend, stop";
+            const stopKeywords = stopRawKw.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+            const isStop = stopKeywords.some((kw: string) => tr.includes(kw) || tr === kw);
+            if (isStop) {
+              window.speechSynthesis.cancel();
+              setIsTtsSpeaking(false);
+              (window as any).isTtsSpeakingActive = false;
+              setVoiceFeedback({ text: 'Audio interrompu.', type: 'info' });
+              setTimeout(() => setVoiceFeedback({ text: '', type: null }), 3000);
+            }
+            return;
+          }
+
           const rawKw = localStorage.getItem('voice_trigger_keywords') || 'dels, bonjour dels';
           const keywords = rawKw.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
 
@@ -1278,7 +1208,7 @@ export const Header = () => {
           },
           'skills': {
             title: "Compétences Techniques - Front-End, Back-End, ML",
-            description: "Découvrez l'étendue de mon expertise technologique : React, TypeScript, Python, TensorFlow, SQL et architectures Cloud."
+            description: "Découvrez l'étendue de mes compétences : React, TypeScript, Python, TensorFlow, SQL et architectures Cloud."
           },
           'certifications': {
             title: "Certifications Officielles & Formations - Portfolio",
@@ -1513,15 +1443,15 @@ export const Header = () => {
 
             {/* Microphone Voice Control Button */}
             <button
-              onClick={startSpeechRecognition}
+              onClick={toggleSpeechRecognition}
               className={`p-1.5 sm:p-2 border transition-all flex items-center justify-center cursor-pointer shadow-sm hover:scale-105 active:scale-95 rounded-xl ${
-                isListening
+                isContinuousListening
                   ? 'bg-red-500 hover:bg-red-600 border-red-500/30 text-white animate-pulse'
-                  : 'text-slate-500 hover:text-red-500 dark:text-slate-400 dark:hover:text-red-400 bg-slate-100/80 hover:bg-slate-200/85 dark:bg-slate-800/60 dark:hover:bg-slate-800/90 border-slate-200/20'
+                  : 'text-emerald-500 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 border-emerald-500/20'
               }`}
-              title="Activer le contrôle vocal (Reconnaissance vocale de navigation)"
+              title="Activer le contrôle vocal continu (Reconnaissance vocale)"
             >
-              <Mic size={13} className={isListening ? 'text-white' : ''} />
+              <Mic size={13} className={isContinuousListening ? 'text-white' : ''} />
             </button>
 
             {/* Admin Panel Toggle Button */}
@@ -1648,15 +1578,15 @@ export const Header = () => {
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      startSpeechRecognition();
+                      toggleSpeechRecognition();
                     }}
                     className={`col-span-4 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-[9.5px] font-bold uppercase font-mono tracking-wider transition-all cursor-pointer ${
-                      isListening
+                      isContinuousListening
                         ? 'bg-red-500 text-white border-red-500/30 animate-pulse'
-                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-red-500 border-slate-200/20'
+                        : 'bg-emerald-500/10 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20'
                     }`}
                   >
-                    <Mic size={11.5} /> {isListening ? 'À l\'écoute active...' : 'Activer le Micro / Parler'}
+                    <Mic size={11.5} /> {isContinuousListening ? 'À l\'écoute active...' : 'Activer le Micro / Parler'}
                   </button>
                   <button
                     onClick={() => {
@@ -1750,7 +1680,7 @@ export const Header = () => {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span className="text-[10px] font-mono tracking-widest font-black text-emerald-400">
-                  DELS RÉPOND
+                  HERMIE RÉPOND
                 </span>
               </div>
               <button 

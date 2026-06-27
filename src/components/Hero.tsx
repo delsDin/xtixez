@@ -16,7 +16,7 @@ const normalPhrases = [
 
 export const Hero = () => {
   const { setActiveSection } = useNavigation();
-  const { generalInfo } = useData();
+  const { generalInfo, experiences, skills, certifications } = useData();
   const [greeting, setGreeting] = useState('Bonjour, je suis');
   const [downloadStatus, setDownloadStatus] = useState<'idle' | 'generating' | 'success'>('idle');
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
@@ -54,7 +54,7 @@ export const Hero = () => {
     
     setTimeout(() => {
       try {
-        downloadCV();
+        downloadCV({ generalInfo, experiences, skills, certifications });
         setDownloadStatus('success');
         
         setTimeout(() => {

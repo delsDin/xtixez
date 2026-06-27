@@ -18,8 +18,8 @@ export const LiveTtsTester: React.FC<LiveTtsTesterProps> = ({ voices, showStatus
       const isEnglish = lang.toLowerCase().startsWith('en');
       setTestText(
         isEnglish
-          ? "Hello there! I am Dels, your voice companion. The Text-to-Speech service configuration is loaded successfully."
-          : "Bonjour ! Je suis Dels, votre compagnon vocal. Votre configuration de synthèse vocale est maintenant entièrement opérationnelle."
+          ? "Hello there! I am Hermie, your voice companion. The Text-to-Speech service configuration is loaded successfully."
+          : "Bonjour ! Je suis Hermie, votre compagnon vocal. Votre configuration de synthèse vocale est maintenant entièrement opérationnelle."
       );
     };
 
@@ -49,7 +49,11 @@ export const LiveTtsTester: React.FC<LiveTtsTesterProps> = ({ voices, showStatus
       const storedLang = localStorage.getItem('voice_lang_preference') || 'fr-FR';
       const preferredVoiceName = localStorage.getItem('voice_profile_preference');
 
-      const utterance = new SpeechSynthesisUtterance(testText || "Test de voix");
+      const cleanedForSpeech = (testText || "Test de voix")
+        .replace(/[*_#`~[\]]/g, '')
+        .replace(/\bM\./g, 'M');
+
+      const utterance = new SpeechSynthesisUtterance(cleanedForSpeech);
       utteranceRef.current = utterance;
       utterance.lang = storedLang;
       utterance.rate = 1.0;

@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, CheckCircle2, XCircle } from 'lucide-react';
+import { useData } from '../context/DataContext';
 
 interface LiveVoiceTesterProps {
   showStatus?: (msg: string, type: 'success' | 'err' | 'prompt') => void;
 }
 
 export const LiveVoiceTester: React.FC<LiveVoiceTesterProps> = ({ showStatus }) => {
+  const { generalInfo, experiences, services, skills, projects } = useData();
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [confidence, setConfidence] = useState<number | null>(null);
@@ -130,8 +132,109 @@ export const LiveVoiceTester: React.FC<LiveVoiceTesterProps> = ({ showStatus }) 
               setStatusText(`Seuil non atteint ! Confiance : ${Math.round(conf * 100)}% (Seuil requis : ${Math.round(threshold * 100)}%)`);
               setStatusType('error');
             } else {
-              setStatusText(`Écoute réussie ! Reçu : "${text}"`);
+              setStatusText(`Traitement de la demande : "${text}"...`);
               setStatusType('success');
+
+              (async () => {
+                try {
+                  const ownerName = generalInfo?.owner_name || "le propriétaire de ce portfolio";
+                  let expText = "";
+                  if (experiences && experiences.length > 0) {
+                    expText = experiences.map((e: any) => `- ${e.role} chez "${e.company}" (${e.period}).`).join(' ');
+                  }
+                  let servicesText = "";
+                  if (services && services.length > 0) {
+                    servicesText = services.map((s: any) => `- ${s.title}`).join(' ');
+                  }
+
+                  let projectsText = "";
+                  if (projects && projects.length > 0) {
+                    projectsText = projects.map((p: any) => `- ${p.title}`).join(' ');
+                  }
+                  let skillsText = "";
+                  if (skills) {
+                    const allSkills = [
+                      ...(skills.development || []),
+                      ...(skills.dataScience || []),
+                      ...(skills.autres || [])
+                    ];
+                    if (allSkills.length > 0) {
+                      skillsText = allSkills.map((s: any) => s.title || s.name).join(', ');
+                    }
+                  }
+
+                  const contextMessage = `Tu es l'assistant vocal de ${ownerName}.
+Voici ses infos:
+Expériences: ${expText}
+Services: ${servicesText}
+Projets: ${projectsText}
+Compétences: ${skillsText}
+Sois très concis et réponds à l'utilisateur.`;
+
+                  const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      history: [
+                        { role: 'user', content: contextMessage },
+                        { role: 'assistant', content: 'Compris. Je répondrai de manière très concise en me basant uniquement sur ces informations.' },
+                        { role: 'user', content: text }
+                      ] 
+                    })
+                  });
+                  
+                  if (!res.ok) throw new Error('API erreur');
+                  const data = await res.json();
+                  const replyText = data.response || "Désolé, je n'ai pas de réponse.";
+                  const uiText = replyText.replace(/[*_#`~[\]]/g, '');
+
+                  setStatusText(`Réponse : ${uiText}`);
+
+                  // Lecture audio (TTS)
+                  const cleanedForSpeech = uiText
+                    .replace(/[*_#`~[\]]/g, '')
+                    .replace(/\bM\./g, 'M');
+
+                  const synth = window.speechSynthesis;
+                  const utterance = new SpeechSynthesisUtterance(cleanedForSpeech);
+                  
+                  const storedLang = localStorage.getItem('voice_lang_preference') || 'fr-FR';
+                  utterance.lang = storedLang;
+                  
+                  const preferredVoiceName = localStorage.getItem('voice_profile_preference');
+                  let voices = synth.getVoices();
+                  let selectedVoice = null;
+                  
+                  const applyVoice = () => {
+                    voices = synth.getVoices();
+                    if (preferredVoiceName) {
+                      selectedVoice = voices.find(v => v.name === preferredVoiceName);
+                    }
+                    if (!selectedVoice) {
+                      const firstTwo = storedLang.substring(0, 2).toLowerCase();
+                      selectedVoice = voices.find(v => v.lang.toLowerCase().startsWith(firstTwo) || v.lang.toLowerCase().includes(storedLang.toLowerCase()));
+                    }
+                    if (selectedVoice) {
+                      utterance.voice = selectedVoice;
+                    }
+                    synth.speak(utterance);
+                  };
+
+                  if (voices.length === 0) {
+                    synth.onvoiceschanged = () => {
+                      applyVoice();
+                      synth.onvoiceschanged = null;
+                    };
+                  } else {
+                    applyVoice();
+                  }
+
+                } catch (e) {
+                  console.error(e);
+                  setStatusText("Erreur lors de la communication avec l'assistant.");
+                  setStatusType('error');
+                }
+              })();
             }
           };
 

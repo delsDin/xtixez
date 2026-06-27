@@ -1,0 +1,5 @@
+{"history": [
+  { "role": "user", "content": "Tu es Hermie, l'assistante vocale de Dels." },
+  { "role": "assistant", "content": "Compris." },
+  { "role": "user", "content": "Bonjour" }
+]}
