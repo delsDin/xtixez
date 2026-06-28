@@ -34,7 +34,7 @@ export const About = () => {
         setCurrentIdx((prev) => (prev + 1) % citations.length);
         setIsVisible(true);
       }, 1800); // Wait for the letter-by-letter dissolution animation to complete
-    }, 10000); // 10 seconds total cycle per quote
+    }, 7000); // 10 seconds total cycle per quote
 
     return () => {
       clearInterval(intervalId);

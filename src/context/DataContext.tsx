@@ -31,7 +31,7 @@ export interface MaintenanceConfig {
 
 const fallbackGeneralInfo: GeneralInfo = {
   owner_name: 'Dels M. Dinla.',
-  owner_title_prefix: 'Dev Python',
+  owner_title_prefix: 'Dev Full-Stack',
   owner_title_suffix: '& Data Scientist',
   profile_picture_url: '',
   normal_phrases: [
@@ -50,7 +50,8 @@ const fallbackGeneralInfo: GeneralInfo = {
   maintenance_mode: false,
   about_title: "À propos de moi",
   about_paragraphs: [
-    "Je suis un développeur full-stack passionné par la création de solutions technologiques innovantes."
+    "Passionné par la résolution de problèmes complexes, je combine une maîtrise en développement logiciel et en science des données. Mon parcours m'a amené à concevoir des architectures robustes tout en extrayant de la valeur à partir de grands volumes de données.",
+    "Mon approche technique repose sur une veille constante et la volonté de créer des produits à la fois performants, scalables et centrés sur l'utilisateur. Que ce soit pour entraîner un modèle de Machine Learning ou développer une interface React réactive, je m'efforce de livrer un code propre et maintenable."
   ],
   about_citations: [
     "La technologie est le meilleur moyen de résoudre les problèmes de demain."
@@ -148,57 +149,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         if (!localStorage.getItem(CACHE_KEY)) {
           setLoading(true);
+          // Force a 5-second loading screen
+          setTimeout(() => {
+            setLoading(false);
+          }, 5000);
         }
         
-        // Fetch all tables in parallel
+        // --- PHASE 1: Fetch core config & layout data first ---
         const [
-          { data: projectsRes, error: pErr },
-          { data: expRes, error: eErr },
-          { data: servRes, error: servErr },
-          { data: skillsRes, error: skErr },
-          { data: testRes, error: tErr },
           { data: genInfoRes, error: gErr },
           { data: maintRes, error: mErr },
-          { data: certsRes, error: cErr },
           { data: visRes, error: vErr }
         ] = await Promise.all([
-          supabase.from('projects').select('*').order('id', { ascending: true }),
-          supabase.from('experiences').select('*').order('id', { ascending: true }),
-          supabase.from('services').select('*'),
-          supabase.from('skills').select('*'),
-          supabase.from('testimonials').select('*'),
           supabase.from('general_info').select('*').single(),
           supabase.from('maintenance_config').select('*').eq('id', 1).single(),
-          supabase.from('certifications').select('*').order('created_at', { ascending: false }),
           supabase.from('section_visibility').select('*').eq('id', 1).single()
         ]);
 
-        // Fallback checks for major layout data
-        if (pErr || eErr || servErr || skErr || tErr || gErr) {
-          const errors = [pErr, eErr, servErr, skErr, tErr, gErr].filter(Boolean);
-          const combinedMsg = errors.map(e => e.message).join('; ');
+        if (gErr) {
           reportIncident({
-            source: 'supabase_read_initial',
-            errorMessage: `Failed to load portfolio tables: ${combinedMsg}`,
-            severity: gErr ? 'critical' : 'warning',
-            metadata: { errors }
+            source: 'supabase_read_initial_core',
+            errorMessage: `Failed to load core config: ${gErr.message}`,
+            severity: 'critical',
+            metadata: { gErr }
           });
-
-          console.warn('Erreur lors du chargement depuis Supabase, utilisation des données locales.');
-          setError('Impossible de joindre la base de données ou tables manquantes.');
-          return; // Use fallbacks if DB fails
+          console.warn('Erreur chargement core config, utilisation fallback.');
+          setError('Impossible de joindre la base de données.');
+          setLoading(false);
+          return;
         }
-        
-        if (cErr) {
-          console.error("Error fetching certifications:", cErr);
-        }
-
-        // Format skills data to match the expected format { development: [], dataScience: [], autres: [] }
-        const formattedSkills = {
-          development: skillsRes?.filter(s => s.category === 'development') || [],
-          dataScience: skillsRes?.filter(s => s.category === 'dataScience') || [],
-          autres: skillsRes?.filter(s => s.category === 'autres') || [],
-        };
 
         let formattedMaint: MaintenanceConfig = fallbackMaintenanceConfig;
         if (maintRes) {
@@ -235,32 +214,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        const newData = {
-          projects: projectsRes?.length ? projectsRes : [],
-          experiences: expRes?.length ? expRes : [],
-          services: servRes?.length ? servRes : [],
-          skills: skillsRes?.length ? formattedSkills : { development: [], dataScience: [], autres: [] },
-          testimonials: testRes?.length ? testRes.filter((t: any) => t.is_active !== false) : [],
+        const coreDataPart = {
           generalInfo: genInfoRes ? {
             ...genInfoRes,
             maintenance_mode: !!genInfoRes.maintenance_mode
           } : fallbackGeneralInfo,
           maintenanceConfig: formattedMaint,
-          certifications: certsRes?.length ? certsRes.map((c: any) => ({
-            id: c.id,
-            title: c.title,
-            issuer: c.issuer,
-            date: c.date,
-            credentialId: c.credential_id || 'N/A',
-            category: c.category,
-            skills: c.skills || [],
-            description: c.description || '',
-            verifyUrl: c.verify_url || '#',
-            logoColor: c.logo_color || 'from-blue-600 via-blue-400 to-indigo-500',
-            status: c.status || 'published',
-            attachmentUrl: c.attachment_url || '',
-            attachmentType: c.attachment_type || ''
-          })) : [],
           sectionVisibility: visRes ? {
             home: visRes.home !== false,
             about: visRes.about !== false,
@@ -278,13 +237,79 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             cv_generator: visRes.cv_generator !== false,
           } : fallbackSectionVisibility
         };
-        
-        setData(newData);
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(newData));
-        } catch (e) {
-          console.warn('Erreur écriture cache local:', e);
+
+        // Update core config immediately
+        setData(prev => ({ ...prev, ...coreDataPart }));
+
+        // --- PHASE 2: Fetch heavy content arrays in background ---
+        const [
+          { data: projectsRes, error: pErr },
+          { data: expRes, error: eErr },
+          { data: servRes, error: servErr },
+          { data: skillsRes, error: skErr },
+          { data: testRes, error: tErr },
+          { data: certsRes, error: cErr }
+        ] = await Promise.all([
+          supabase.from('projects').select('*').order('id', { ascending: true }),
+          supabase.from('experiences').select('*').order('id', { ascending: true }),
+          supabase.from('services').select('*'),
+          supabase.from('skills').select('*'),
+          supabase.from('testimonials').select('*'),
+          supabase.from('certifications').select('*').order('created_at', { ascending: false })
+        ]);
+
+        if (pErr || eErr || servErr || skErr || tErr) {
+          const errors = [pErr, eErr, servErr, skErr, tErr].filter(Boolean);
+          const combinedMsg = errors.map(e => e.message).join('; ');
+          reportIncident({
+            source: 'supabase_read_initial_content',
+            errorMessage: `Failed to load portfolio content tables: ${combinedMsg}`,
+            severity: 'warning',
+            metadata: { errors }
+          });
+          console.warn('Erreur chargement contenu:', combinedMsg);
         }
+        
+        if (cErr) console.error("Error fetching certifications:", cErr);
+
+        const formattedSkills = {
+          development: skillsRes?.filter(s => s.category === 'development') || [],
+          dataScience: skillsRes?.filter(s => s.category === 'dataScience') || [],
+          autres: skillsRes?.filter(s => s.category === 'autres') || [],
+        };
+
+        const contentDataPart = {
+          projects: projectsRes?.length ? projectsRes : [],
+          experiences: expRes?.length ? expRes : [],
+          services: servRes?.length ? servRes : [],
+          skills: skillsRes?.length ? formattedSkills : { development: [], dataScience: [], autres: [] },
+          testimonials: testRes?.length ? testRes.filter((t: any) => t.is_active !== false) : [],
+          certifications: certsRes?.length ? certsRes.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            issuer: c.issuer,
+            date: c.date,
+            credentialId: c.credential_id || 'N/A',
+            category: c.category,
+            skills: c.skills || [],
+            description: c.description || '',
+            verifyUrl: c.verify_url || '#',
+            logoColor: c.logo_color || 'from-blue-600 via-blue-400 to-indigo-500',
+            status: c.status || 'published',
+            attachmentUrl: c.attachment_url || '',
+            attachmentType: c.attachment_type || ''
+          })) : []
+        };
+
+        setData(prev => {
+          const fullData = { ...prev, ...coreDataPart, ...contentDataPart };
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(fullData));
+          } catch (e) {
+            console.warn('Erreur écriture cache local:', e);
+          }
+          return fullData;
+        });
         
       } catch (err: any) {
         reportIncident({
@@ -295,7 +320,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         console.error('Erreur DataContext:', err);
         setError(err.message);
-      } finally {
         setLoading(false);
       }
     };
